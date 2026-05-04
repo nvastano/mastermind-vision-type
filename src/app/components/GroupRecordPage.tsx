@@ -7,6 +7,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration } from '../App';
 import { ProRecordModal } from './ProRecordModal';
+import { BulkEmailModal } from './BulkEmailModal';
 
 type Props = {
   group: MastermindGroup;
@@ -145,6 +146,7 @@ export function GroupRecordPage({
 }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'sessions' | 'members'>('sessions');
   const [selectedPro, setSelectedPro] = useState<Pro | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(group.name);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -286,6 +288,12 @@ export function GroupRecordPage({
               className="px-3 py-1.5 bg-white text-[#080707] text-[13px] font-normal rounded border border-[#DDDBDA] hover:bg-[#F3F2F2] transition-colors flex items-center gap-1.5"
             >
               <UserPlus className="w-3.5 h-3.5" /> Manage Members
+            </button>
+            <button
+              onClick={() => setEmailModalOpen(true)}
+              className="px-3 py-1.5 bg-[#0176D3] text-white text-[13px] font-normal rounded border border-[#0176D3] hover:bg-[#014486] transition-colors flex items-center gap-1.5"
+            >
+              <Mail className="w-3.5 h-3.5" /> Send Email
             </button>
             <button className="px-3 py-1.5 bg-white text-[#080707] text-[13px] font-normal rounded border border-[#DDDBDA] hover:bg-[#F3F2F2] transition-colors flex items-center gap-1">
               More <ChevronDown className="w-3 h-3" />
@@ -725,6 +733,18 @@ export function GroupRecordPage({
           sessions={sessions}
           registrations={registrations.filter(r => r.proId === selectedPro.id)}
           onClose={() => setSelectedPro(null)}
+        />
+      )}
+
+      {/* Bulk email modal */}
+      {emailModalOpen && (
+        <BulkEmailModal
+          group={group}
+          coach={coach}
+          members={members}
+          sessions={sessions}
+          registrations={registrations}
+          onClose={() => setEmailModalOpen(false)}
         />
       )}
     </div>
