@@ -19,7 +19,10 @@ type RegistrationsModalProps = {
   onCompleteSession: (sessionId: string) => void;
 };
 
-const SESSION_LABELS = ['Option A', 'Option B', 'Option C'] as const;
+const SESSION_LABELS = ['Option A', 'Option B', 'Option C', 'Makeup'] as const;
+function getSessionLabel(sessionNumber: number): string {
+  return SESSION_LABELS[sessionNumber - 1] ?? `Session ${sessionNumber}`;
+}
 
 function statusPill(status: MastermindSession['status']) {
   const map: Record<string, { cls: string; label: string }> = {
@@ -135,13 +138,13 @@ export function RegistrationsModal({
 
         {/* ── Session Cards ───────────────────────────────────── */}
         <div className="px-6 py-4 grid grid-cols-3 gap-3 border-b border-[#DDDBDA]">
-          {sortedSessions.map((session, idx) => {
+          {sortedSessions.map((session) => {
             const regCount = registrations.filter(r => r.sessionId === session.id).length;
             return (
               <div key={session.id} className="border border-[#DDDBDA] rounded p-3 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold text-[#706E6B] uppercase tracking-wide">
-                    {SESSION_LABELS[idx]}
+                    {getSessionLabel(session.sessionNumber)}
                   </span>
                   {statusPill(session.status)}
                 </div>
@@ -199,7 +202,7 @@ export function RegistrationsModal({
                       key={session.id}
                       className="text-center px-3 py-2.5 text-[11px] font-bold text-[#706E6B] uppercase tracking-wide"
                     >
-                      <div>{SESSION_LABELS[idx]}</div>
+                      <div>{getSessionLabel(session.sessionNumber)}</div>
                       <div className="text-[10px] font-normal text-[#706E6B] normal-case tracking-normal">
                         {format(session.date, 'MMM d · h:mm a')}
                       </div>

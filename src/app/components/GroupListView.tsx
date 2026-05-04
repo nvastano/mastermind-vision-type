@@ -85,7 +85,7 @@ export function GroupListView({ groups, coaches, sessions, registrations, onOpen
                 <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#DDDBDA]" />
               </th>
               {[
-                'Group Name', 'Coach', 'Status', 'Members',
+                'Group Name', 'Coach', 'Status', 'Type', 'Members',
                 'Latest Month', 'Sessions', 'Registrations', 'Month Status',
               ].map(h => (
                 <th
@@ -147,6 +147,19 @@ export function GroupListView({ groups, coaches, sessions, registrations, onOpen
                       }`} />
                       {group.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+
+                  {/* Type */}
+                  <td className="px-3 py-3">
+                    {group.type === 'flexible' ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-[#EEF4FF] text-[#014486]">
+                        Flexible
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-[#F3F2F2] text-[#706E6B]">
+                        Fixed
+                      </span>
+                    )}
                   </td>
 
                   {/* Members */}

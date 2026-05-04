@@ -24,6 +24,15 @@ export type Coach = {
   email: string;
 };
 
+export type FixedSlot = {
+  id: string;
+  label: string;       // "Cohort 1", "Cohort 2", "Cohort 3"
+  dayOfWeek: number;   // 0=Sun, 1=Mon ... 6=Sat
+  hour: number;
+  minute: number;
+  memberIds: string[]; // which pros belong to this cohort
+};
+
 export type MastermindGroup = {
   id: string;
   name: string;
@@ -31,16 +40,20 @@ export type MastermindGroup = {
   memberIds: string[];
   createdDate: Date;
   status: 'active' | 'inactive';
+  type: 'flexible' | 'fixed';
+  fixedSlots?: FixedSlot[];
 };
 
 export type MastermindSession = {
   id: string;
   groupId: string;
   month: string;
-  sessionNumber: 1 | 2 | 3;
+  sessionNumber: number; // makeup is 4th
   date: Date;
   status: 'scheduled' | 'invitations_sent' | 'completed' | 'cancelled';
   zoomLink: string;
+  sessionType: 'option' | 'fixed_slot' | 'makeup';
+  slotId?: string; // which cohort this session belongs to
 };
 
 export type SessionRegistration = {
@@ -130,13 +143,127 @@ export default function App() {
       id: `s${Date.now()}-${i}`,
       groupId,
       month,
-      sessionNumber: (i + 1) as 1 | 2 | 3,
+      sessionNumber: (i + 1),
       date,
       status: 'scheduled',
       zoomLink: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`,
+      sessionType: 'option' as const,
     }));
     setSessions(prev => [...prev, ...newSessions]);
     setShowCreateSessions(false);
+  };
+
+  // ── Fixed Group Session Utilities ────────────────────────────────────────────
+
+  /** Returns the nth occurrence of dayOfWeek (0=Sun..6=Sat) in the given month */
+  function getNthWeekday(year: number, month: number, dayOfWeek: number, n: number): Date {
+    const d = new Date(year, month - 1, 1);
+    let count = 0;
+    while (d.getMonth() === month - 1) {
+      if (d.getDay() === dayOfWeek) {
+        count++;
+        if (count === n) return new Date(d);
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return new Date(year, month - 1, 14);
+  }
+
+  /** Returns the last occurrence of dayOfWeek in the given month */
+  function getLastWeekday(year: number, month: number, dayOfWeek: number): Date {
+    const d = new Date(year, month, 0); // last day of month
+    while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() - 1);
+    return new Date(d);
+  }
+
+  /**
+   * Generates this month's sessions for a fixed group:
+   * 3 fixed_slot sessions (one per cohort) + 1 makeup session.
+   * Also auto-creates SessionRegistrations for every cohort member in their slot.
+   */
+  const handleGenerateFixedSessions = (groupId: string, month: string) => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group || !group.fixedSlots || group.fixedSlots.length === 0) return;
+
+    const [yearStr, moStr] = month.split('-');
+    const year = parseInt(yearStr);
+    const mo   = parseInt(moStr);
+
+    const newSessions: MastermindSession[] = [];
+    const newRegistrations: SessionRegistration[] = [];
+
+    // Create one session per fixed slot (2nd occurrence of that weekday)
+    group.fixedSlots.forEach((slot, i) => {
+      const sessionDate = getNthWeekday(year, mo, slot.dayOfWeek, 2);
+      sessionDate.setHours(slot.hour, slot.minute, 0, 0);
+
+      const sessionId = `fs-gen-${groupId}-${month}-${slot.id}`;
+      newSessions.push({
+        id: sessionId,
+        groupId,
+        month,
+        sessionNumber: i + 1,
+        date: sessionDate,
+        status: 'scheduled',
+        zoomLink: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`,
+        sessionType: 'fixed_slot',
+        slotId: slot.id,
+      });
+
+      // Auto-register every cohort member
+      slot.memberIds.forEach(proId => {
+        newRegistrations.push({
+          id: `r-gen-${Date.now()}-${proId}-${slot.id}`,
+          sessionId,
+          groupId,
+          proId,
+          registeredDate: new Date(),
+          attended: null,
+        });
+      });
+    });
+
+    // Create makeup session (last occurrence of the first slot's day of week, at noon)
+    const makeupDate = getLastWeekday(year, mo, group.fixedSlots[0].dayOfWeek);
+    makeupDate.setHours(12, 0, 0, 0);
+    const makeupId = `fs-makeup-${groupId}-${month}`;
+    newSessions.push({
+      id: makeupId,
+      groupId,
+      month,
+      sessionNumber: 4,
+      date: makeupDate,
+      status: 'scheduled',
+      zoomLink: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`,
+      sessionType: 'makeup',
+    });
+
+    setSessions(prev => [...prev, ...newSessions]);
+    setRegistrations(prev => [...prev, ...newRegistrations]);
+  };
+
+  /**
+   * Invites specific pros to the makeup session for the given month.
+   * Creates SessionRegistration records for each selected pro.
+   */
+  const handleInviteToMakeup = (groupId: string, month: string, proIds: string[]) => {
+    const makeupSession = sessions.find(
+      s => s.groupId === groupId && s.month === month && s.sessionType === 'makeup'
+    );
+    if (!makeupSession) return;
+
+    const newRegistrations: SessionRegistration[] = proIds
+      .filter(proId => !registrations.some(r => r.sessionId === makeupSession.id && r.proId === proId))
+      .map(proId => ({
+        id: `r-makeup-${Date.now()}-${proId}`,
+        sessionId: makeupSession.id,
+        groupId,
+        proId,
+        registeredDate: new Date(),
+        attended: null,
+      }));
+
+    setRegistrations(prev => [...prev, ...newRegistrations]);
   };
 
   const handleSendInvitations = (groupId: string, month: string) => {
@@ -351,6 +478,8 @@ export default function App() {
             onCompleteSession={handleCompleteSession}
             onUpdateGroup={handleUpdateGroup}
             onSyncAttendance={handleSyncAttendance}
+            onGenerateFixedSessions={(month) => handleGenerateFixedSessions(activeGroup.id, month)}
+            onInviteToMakeup={(month, proIds) => handleInviteToMakeup(activeGroup.id, month, proIds)}
           />
         ) : null}
       </main>

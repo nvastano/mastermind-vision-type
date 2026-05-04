@@ -11,7 +11,10 @@ type Props = {
   onClose: () => void;
 };
 
-const SESSION_LABELS = ['Option A', 'Option B', 'Option C'] as const;
+const SESSION_LABELS = ['Option A', 'Option B', 'Option C', 'Makeup'] as const;
+function getSessionLabel(sessionNumber: number): string {
+  return SESSION_LABELS[sessionNumber - 1] ?? `Session ${sessionNumber}`;
+}
 
 export function ProRecordModal({ pro, group, coach, sessions, registrations, onClose }: Props) {
   // All registrations for this pro, sorted newest first
@@ -146,7 +149,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                     {proRegs.map(reg => {
                       const session = sessions.find(s => s.id === reg.sessionId);
                       if (!session) return null;
-                      const optLabel = SESSION_LABELS[session.sessionNumber - 1];
+                      const optLabel = getSessionLabel(session.sessionNumber);
                       return (
                         <tr key={reg.id} className="hover:bg-[#F3F2F2] transition-colors">
                           <td className="px-4 py-2.5 text-[12px] text-[#080707]">

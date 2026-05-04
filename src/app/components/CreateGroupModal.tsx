@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Info, Users } from 'lucide-react';
-import type { Coach, Pro, MastermindGroup } from '../App';
+import type { Coach, Pro, MastermindGroup, FixedSlot } from '../App';
 
 type CreateGroupModalProps = {
   coaches: Coach[];
@@ -9,23 +9,64 @@ type CreateGroupModalProps = {
   onCreate: (group: Omit<MastermindGroup, 'id' | 'createdDate'>) => void;
 };
 
+const DAY_OPTIONS = [
+  { value: 1, label: 'Monday'    },
+  { value: 2, label: 'Tuesday'   },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday'  },
+  { value: 5, label: 'Friday'    },
+];
+
+type CohortRow = { dayOfWeek: number; hour: string; minute: string };
+
+const DEFAULT_COHORTS: CohortRow[] = [
+  { dayOfWeek: 1, hour: '10', minute: '00' },
+  { dayOfWeek: 3, hour: '14', minute: '00' },
+  { dayOfWeek: 5, hour: '18', minute: '00' },
+];
+
 export function CreateGroupModal({ coaches, pros, onClose, onCreate }: CreateGroupModalProps) {
   const [name, setName] = useState('');
   const [coachId, setCoachId] = useState('');
+  const [groupType, setGroupType] = useState<'flexible' | 'fixed'>('flexible');
+  const [cohorts, setCohorts] = useState<CohortRow[]>(DEFAULT_COHORTS);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && coachId) {
-      onCreate({ name, coachId, memberIds: selectedMemberIds, status: 'active' });
+    if (!name || !coachId) return;
+
+    let fixedSlots: FixedSlot[] | undefined;
+    if (groupType === 'fixed') {
+      fixedSlots = cohorts.map((c, i) => ({
+        id:         `fs-new-${i + 1}`,
+        label:      `Cohort ${i + 1}`,
+        dayOfWeek:  c.dayOfWeek,
+        hour:       parseInt(c.hour) || 0,
+        minute:     parseInt(c.minute) || 0,
+        memberIds:  [], // assigned after creation via Manage Members
+      }));
     }
+
+    onCreate({
+      name,
+      coachId,
+      memberIds: selectedMemberIds,
+      status: 'active',
+      type: groupType,
+      fixedSlots,
+    });
   };
 
   const toggleMember = (proId: string) => {
     setSelectedMemberIds(prev =>
       prev.includes(proId) ? prev.filter(id => id !== proId) : [...prev, proId]
     );
+  };
+
+  const updateCohort = (idx: number, field: keyof CohortRow, value: string | number) => {
+    setCohorts(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   };
 
   const filteredPros = pros.filter(
@@ -48,10 +89,7 @@ export function CreateGroupModal({ coaches, pros, onClose, onCreate }: CreateGro
               <p className="text-[12px] text-[#A8C8F8] mt-0.5">Mastermind__c · New Record</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded transition-colors">
             <X className="w-5 h-5 text-white" />
           </button>
         </div>
@@ -65,7 +103,7 @@ export function CreateGroupModal({ coaches, pros, onClose, onCreate }: CreateGro
               <p>
                 This creates a <strong>Mastermind__c</strong> record. Members are stored as{' '}
                 <strong>Mastermind_Group_Member__c</strong> child records. After saving, you'll create
-                three session options per month via <strong>Mastermind_Session__c</strong>.
+                sessions per month via <strong>Mastermind_Session__c</strong>.
               </p>
             </div>
           </div>
@@ -104,6 +142,100 @@ export function CreateGroupModal({ coaches, pros, onClose, onCreate }: CreateGro
               ))}
             </select>
           </div>
+
+          {/* Group Type */}
+          <div>
+            <label className="block text-[12px] font-bold text-[#080707] mb-2 uppercase tracking-wide">
+              Group Type *
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-[#F3F2F2] transition-colors border-[#DDDBDA]"
+                style={groupType === 'flexible' ? { borderColor: '#0176D3', background: '#EEF4FF' } : {}}
+              >
+                <input
+                  type="radio"
+                  name="groupType"
+                  value="flexible"
+                  checked={groupType === 'flexible'}
+                  onChange={() => setGroupType('flexible')}
+                  className="mt-0.5 text-[#0176D3]"
+                />
+                <div>
+                  <p className="text-[13px] font-bold text-[#080707]">Flexible</p>
+                  <p className="text-[12px] text-[#706E6B]">
+                    Pros self-register for one of three monthly session options
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-[#F3F2F2] transition-colors border-[#DDDBDA]"
+                style={groupType === 'fixed' ? { borderColor: '#7B5EA7', background: '#F5F0FF' } : {}}
+              >
+                <input
+                  type="radio"
+                  name="groupType"
+                  value="fixed"
+                  checked={groupType === 'fixed'}
+                  onChange={() => setGroupType('fixed')}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-[13px] font-bold text-[#080707]">Fixed</p>
+                  <p className="text-[12px] text-[#706E6B]">
+                    Pros are assigned to a recurring cohort; sessions auto-generate each month
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Cohort Schedule (only for Fixed) */}
+          {groupType === 'fixed' && (
+            <div>
+              <label className="block text-[12px] font-bold text-[#080707] mb-2 uppercase tracking-wide">
+                Cohort Schedule
+              </label>
+              <div className="space-y-2">
+                {cohorts.map((cohort, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 bg-[#FAFAF9] border border-[#DDDBDA] rounded">
+                    <span className="text-[12px] font-bold text-[#706E6B] w-16 flex-shrink-0">
+                      Cohort {i + 1}
+                    </span>
+                    <select
+                      value={cohort.dayOfWeek}
+                      onChange={e => updateCohort(i, 'dayOfWeek', parseInt(e.target.value))}
+                      className="px-2 py-1.5 border border-[#DDDBDA] rounded bg-white text-[12px] text-[#080707] focus:outline-none focus:border-[#0176D3]"
+                    >
+                      {DAY_OPTIONS.map(d => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0} max={23}
+                        value={cohort.hour}
+                        onChange={e => updateCohort(i, 'hour', e.target.value)}
+                        className="w-12 px-2 py-1.5 border border-[#DDDBDA] rounded bg-white text-[12px] text-center text-[#080707] focus:outline-none focus:border-[#0176D3]"
+                        placeholder="HH"
+                      />
+                      <span className="text-[#706E6B]">:</span>
+                      <input
+                        type="number"
+                        min={0} max={59}
+                        value={cohort.minute}
+                        onChange={e => updateCohort(i, 'minute', e.target.value)}
+                        className="w-12 px-2 py-1.5 border border-[#DDDBDA] rounded bg-white text-[12px] text-center text-[#080707] focus:outline-none focus:border-[#0176D3]"
+                        placeholder="MM"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-[#706E6B] mt-2">
+                Cohort member assignment is done after saving via Manage Members.
+              </p>
+            </div>
+          )}
 
           {/* Member Selection */}
           <div>

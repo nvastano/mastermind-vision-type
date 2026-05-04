@@ -184,6 +184,11 @@ export function AttendanceReport({ groups, coaches, sessions, registrations }: P
                         </span>
                       </div>
                       <span className="text-[13px] text-[#080707]">{row.coach.name}</span>
+                      {row.group.type === 'flexible' ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] bg-[#EEF4FF] text-[#014486]">Flexible</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] bg-[#F3F2F2] text-[#706E6B]">Fixed</span>
+                      )}
                     </div>
                   </td>
                   {/* Book size */}
