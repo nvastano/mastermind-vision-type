@@ -90,8 +90,25 @@ export default function App() {
     { id: 'c12', name: 'Sarah Francis',         email: 'sarah.francis@ramseyrealty.com' },
   ]);
 
-  // 300 pros — seeded from static data, persisted in localStorage
+  // 360 pros — seeded from static data, persisted in localStorage
   const [pros] = useLocalStorage<Pro[]>('rt-pros', SEED_PROS);
+
+  // Each coach's book of business — maps coachId to a list of pro IDs.
+  // For flexible groups, these pros are auto-added as members on creation.
+  const COACH_BOOKS: Record<string, string[]> = {
+    c1:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 1).padStart(4, '0')}`),
+    c2:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 61).padStart(4, '0')}`),
+    c3:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 121).padStart(4, '0')}`),
+    c4:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 181).padStart(4, '0')}`),
+    c5:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 241).padStart(4, '0')}`),
+    c6:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 301).padStart(4, '0')}`),
+    c7:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 1).padStart(4, '0')}`),
+    c8:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 41).padStart(4, '0')}`),
+    c9:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 81).padStart(4, '0')}`),
+    c10: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 121).padStart(4, '0')}`),
+    c11: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 161).padStart(4, '0')}`),
+    c12: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 201).padStart(4, '0')}`),
+  };
 
   // App data — seeded on first load, persisted across refreshes
   const [groups, setGroups]               = useLocalStorage<MastermindGroup[]>('rt-groups', SEED_GROUPS);
@@ -120,7 +137,11 @@ export default function App() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleCreateGroup = (group: Omit<MastermindGroup, 'id' | 'createdDate'>) => {
-    const newGroup: MastermindGroup = { ...group, id: `g${Date.now()}`, createdDate: new Date() };
+    // For flexible groups, auto-populate the book of business as members
+    const memberIds = group.type === 'flexible'
+      ? (COACH_BOOKS[group.coachId] ?? [])
+      : group.memberIds;
+    const newGroup: MastermindGroup = { ...group, memberIds, id: `g${Date.now()}`, createdDate: new Date() };
     setGroups(prev => [...prev, newGroup]);
     setShowCreateGroup(false);
     openGroupTab(newGroup.id);
