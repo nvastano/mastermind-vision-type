@@ -135,6 +135,10 @@ export default function App() {
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
   };
 
+  const handleUpdateFixedSlots = (groupId: string, slots: FixedSlot[]) => {
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, fixedSlots: slots } : g));
+  };
+
   // Simulate Zoom attendance sync — marks all registrants for a session as attended
   const handleSyncAttendance = (sessionId: string) => {
     setRegistrations(prev =>
@@ -390,6 +394,7 @@ export default function App() {
             onStartSession={() => {}}
             onCompleteSession={handleCompleteSession}
             onUpdateGroup={handleUpdateGroup}
+            onUpdateFixedSlots={handleUpdateFixedSlots}
             onSyncAttendance={handleSyncAttendance}
             onGenerateFixedSessions={(month) => handleGenerateFixedSessions(activeGroup.id, month)}
             onInviteToMakeup={(month, proIds) => handleInviteToMakeup(activeGroup.id, month, proIds)}
