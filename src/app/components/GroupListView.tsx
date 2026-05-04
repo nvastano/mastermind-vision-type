@@ -13,11 +13,15 @@ type GroupListViewProps = {
 
 export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: GroupListViewProps) {
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'fixed' | 'flexible'>('all');
 
-  const filtered = groups.filter(g =>
-    g.name.toLowerCase().includes(search.toLowerCase()) ||
-    coaches.find(c => c.id === g.coachId)?.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = groups.filter(g => {
+    const matchesSearch =
+      g.name.toLowerCase().includes(search.toLowerCase()) ||
+      coaches.find(c => c.id === g.coachId)?.name.toLowerCase().includes(search.toLowerCase());
+    const matchesType = typeFilter === 'all' || g.type === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div>
@@ -36,8 +40,26 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
             New
           </button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <p className="text-[13px] text-[#706E6B]">{filtered.length} groups</p>
+
+          {/* Type filter */}
+          <div className="flex items-center rounded border border-[#DDDBDA] overflow-hidden">
+            {(['all', 'fixed', 'flexible'] as const).map(opt => (
+              <button
+                key={opt}
+                onClick={() => setTypeFilter(opt)}
+                className={`px-3 py-1 text-[12px] transition-colors ${
+                  typeFilter === opt
+                    ? 'bg-[#032D60] text-white'
+                    : 'bg-white text-[#706E6B] hover:bg-[#F3F2F2]'
+                }`}
+              >
+                {opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+              </button>
+            ))}
+          </div>
+
           <div className="flex-1 max-w-xs relative">
             <Search className="w-3.5 h-3.5 text-[#706E6B] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
