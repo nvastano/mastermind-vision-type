@@ -18,16 +18,16 @@ function proRange(start: number, end: number): string[] {
 
 // ── Fixed slots for David (sg-1) ─────────────────────────────────────────────
 const DAVID_SLOTS: FixedSlot[] = [
-  { id: 'fs-d-1', label: 'Cohort 1', dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(1,  20) },
-  { id: 'fs-d-2', label: 'Cohort 2', dayOfWeek: 3, hour: 14, minute: 0,  memberIds: proRange(21, 40) },
-  { id: 'fs-d-3', label: 'Cohort 3', dayOfWeek: 5, hour: 18, minute: 0,  memberIds: proRange(41, 60) },
+  { id: 'fs-d-1', label: 'Group 1', dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(1,  20) },
+  { id: 'fs-d-2', label: 'Group 2', dayOfWeek: 3, hour: 14, minute: 0,  memberIds: proRange(21, 40) },
+  { id: 'fs-d-3', label: 'Group 3', dayOfWeek: 5, hour: 18, minute: 0,  memberIds: proRange(41, 60) },
 ];
 
 // ── Fixed slots for Katrien (sg-4) ────────────────────────────────────────────
 const KATRIEN_SLOTS: FixedSlot[] = [
-  { id: 'fs-k-1', label: 'Cohort 1', dayOfWeek: 2, hour: 10, minute: 30, memberIds: proRange(181, 200) },
-  { id: 'fs-k-2', label: 'Cohort 2', dayOfWeek: 4, hour: 14, minute: 30, memberIds: proRange(201, 220) },
-  { id: 'fs-k-3', label: 'Cohort 3', dayOfWeek: 2, hour: 17, minute: 30, memberIds: proRange(221, 240) },
+  { id: 'fs-k-1', label: 'Group 1', dayOfWeek: 2, hour: 10, minute: 30, memberIds: proRange(181, 200) },
+  { id: 'fs-k-2', label: 'Group 2', dayOfWeek: 4, hour: 14, minute: 30, memberIds: proRange(201, 220) },
+  { id: 'fs-k-3', label: 'Group 3', dayOfWeek: 2, hour: 17, minute: 30, memberIds: proRange(221, 240) },
 ];
 
 // ── Groups — 60 pros each ─────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users } from 'lucide-react';
+import { X, Users, Plus } from 'lucide-react';
 import type { Coach, Pro, MastermindGroup, FixedSlot } from '../App';
 
 type CreateGroupModalProps = {
@@ -26,6 +26,11 @@ export function CreateGroupModal({ coaches, onClose, onCreate }: CreateGroupModa
     setSlots(prev => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
   };
 
+  const addSlot = () => setSlots(prev => [...prev, { dayOfWeek: 1, hour: 9, minute: 0 }]);
+
+  const removeSlot = (idx: number) =>
+    setSlots(prev => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !coachId) return;
@@ -33,7 +38,7 @@ export function CreateGroupModal({ coaches, onClose, onCreate }: CreateGroupModa
     const fixedSlots: FixedSlot[] | undefined = type === 'fixed'
       ? slots.map((s, i) => ({
           id: `fs-new-${Date.now()}-${i}`,
-          label: `Cohort ${i + 1}`,
+          label: `Group ${i + 1}`,
           dayOfWeek: s.dayOfWeek,
           hour: s.hour,
           minute: s.minute,
@@ -107,7 +112,7 @@ export function CreateGroupModal({ coaches, onClose, onCreate }: CreateGroupModa
             <div className="space-y-2">
               {([
                 { value: 'flexible', label: 'Flexible', desc: 'Pros self-register for one of three monthly session options' },
-                { value: 'fixed',    label: 'Fixed',    desc: 'Pros are assigned to a recurring cohort with a set schedule' },
+                { value: 'fixed',    label: 'Fixed',    desc: 'Pros are assigned to recurring groups with set schedules each month' },
               ] as const).map(opt => (
                 <label
                   key={opt.value}
@@ -133,16 +138,19 @@ export function CreateGroupModal({ coaches, onClose, onCreate }: CreateGroupModa
             </div>
           </div>
 
-          {/* Fixed cohort schedule */}
+          {/* Fixed group schedule */}
           {type === 'fixed' && (
             <div>
-              <label className="block text-[12px] font-bold text-[#080707] mb-2 uppercase tracking-wide">
-                Cohort Schedule
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[12px] font-bold text-[#080707] uppercase tracking-wide">
+                  Group Schedule
+                </label>
+                <span className="text-[11px] text-[#706E6B]">{slots.length} group{slots.length !== 1 ? 's' : ''}</span>
+              </div>
               <div className="space-y-2">
                 {slots.map((slot, i) => (
                   <div key={i} className="flex items-center gap-2 p-3 bg-[#FAFAF9] rounded border border-[#DDDBDA]">
-                    <span className="text-[12px] font-bold text-[#706E6B] w-16 shrink-0">Cohort {i + 1}</span>
+                    <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">Group {i + 1}</span>
                     <select
                       value={slot.dayOfWeek}
                       onChange={e => updateSlot(i, 'dayOfWeek', Number(e.target.value))}
@@ -162,10 +170,26 @@ export function CreateGroupModal({ coaches, onClose, onCreate }: CreateGroupModa
                       }}
                       className="w-28 px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(i)}
+                      disabled={slots.length === 1}
+                      className="p-1.5 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      title="Remove group"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={addSlot}
+                  className="w-full py-2 border border-dashed border-[#DDDBDA] rounded text-[12px] text-[#0176D3] hover:bg-[#EEF4FF] hover:border-[#0176D3] transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Group
+                </button>
                 <p className="text-[11px] text-[#706E6B]">
-                  Assign members to cohorts after saving via Manage Members.
+                  Assign members to groups after saving via Manage Members.
                 </p>
               </div>
             </div>
