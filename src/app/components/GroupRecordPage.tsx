@@ -51,59 +51,7 @@ function StatusPill({ status }: { status: MastermindSession['status'] }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-normal ${cls}`}>{label}</span>;
 }
 
-// ── Pipeline bar ──────────────────────────────────────────────────────────────
 
-function RecordPath({ sessions }: { sessions: MastermindSession[] }) {
-  const latestMonth = [...new Set(sessions.map(s => s.month))].sort().reverse()[0];
-  const monthSessions = sessions.filter(s => s.month === latestMonth);
-
-  const hasSessions  = monthSessions.length > 0;
-  const invSent      = monthSessions.some(s => s.status === 'invitations_sent' || s.status === 'completed');
-  const allCompleted = monthSessions.length > 0 && monthSessions.every(s => s.status === 'completed');
-
-  const stages = [
-    { label: 'Sessions Created',   done: hasSessions   },
-    { label: 'Invitations Sent',   done: invSent       },
-    { label: 'Sessions Completed', done: allCompleted  },
-    { label: 'Attendance Synced',  done: allCompleted  },
-  ];
-
-  const activeIdx = stages.reduce((acc, s, i) => (s.done ? i : acc), -1);
-
-  return (
-    <div className="bg-white border-b border-[#DDDBDA]">
-      <div className="px-4 py-2 flex items-center gap-0 overflow-x-auto">
-        {stages.map((stage, i) => {
-          const isActive = i === activeIdx;
-          const isDone   = stage.done && i < activeIdx;
-          return (
-            <div key={stage.label} className="flex items-center flex-shrink-0">
-              <div
-                className={`relative flex items-center px-5 py-2.5 text-[12px] transition-colors ${
-                  isActive ? 'text-white' : isDone ? 'bg-[#E7F6EC] text-[#2E844A]' : 'bg-[#FAFAF9] text-[#706E6B]'
-                }`}
-                style={{
-                  background: isActive ? '#032D60' : undefined,
-                  clipPath: i === 0
-                    ? 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
-                    : 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%)',
-                  marginLeft: i === 0 ? 0 : -1,
-                  minWidth: 160,
-                  justifyContent: 'center',
-                }}
-              >
-                <div className="flex items-center gap-1.5">
-                  {isDone && <Check className="w-3.5 h-3.5 text-[#2E844A]" />}
-                  <span>{stage.label}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ── Session card ──────────────────────────────────────────────────────────────
 
@@ -193,22 +141,6 @@ function SessionCard({
 
       {/* Actions */}
       <div className="px-3 py-2 border-t border-[#DDDBDA] flex flex-wrap gap-1.5">
-        {!isComplete && (
-          <button
-            onClick={() => onComplete(session.id)}
-            className="px-2.5 py-1 bg-white text-[#2E844A] text-[11px] rounded border border-[#2E844A] hover:bg-[#E7F6EC] transition-colors flex items-center gap-1"
-          >
-            <Check className="w-3 h-3" /> Mark Complete
-          </button>
-        )}
-        {isComplete && (
-          <button
-            onClick={() => onSync(session.id)}
-            className="px-2.5 py-1 bg-white text-[#0176D3] text-[11px] rounded border border-[#0176D3] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5"
-          >
-            <Wifi className="w-3 h-3" /> Sync Zoom
-          </button>
-        )}
         {isMakeup && noShowPros && noShowPros.length > 0 && !isComplete && (
           <button
             onClick={() => setMakeupOpen(v => !v)}
@@ -446,9 +378,6 @@ export function GroupRecordPage({
           </div>
         </div>
       </div>
-
-      {/* ── Pipeline bar ────────────────────────────────────────────────────── */}
-      <RecordPath sessions={sessions} />
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <div className="p-4 space-y-4">

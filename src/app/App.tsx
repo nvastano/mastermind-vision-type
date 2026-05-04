@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Bell, HelpCircle, Settings, Grid3X3, ChevronDown, X, List, BarChart2 } from 'lucide-react';
+import { Plus, ChevronDown, X, List } from 'lucide-react';
 import { GroupListView } from './components/GroupListView';
 import { GroupRecordPage } from './components/GroupRecordPage';
 import { CreateGroupModal } from './components/CreateGroupModal';
@@ -285,55 +285,13 @@ export default function App() {
     <div className="min-h-screen bg-[#F3F2F2] flex flex-col">
       {/* ── Global Nav Bar ─────────────────────────────────────────────────── */}
       <header className="bg-[#032D60] flex-shrink-0" style={{ minHeight: 48 }}>
-        <div className="flex items-center h-12 px-3 gap-2">
-          {/* Waffle menu */}
-          <button className="p-1.5 rounded hover:bg-white/10 transition-colors text-white">
-            <Grid3X3 className="w-4 h-4" />
-          </button>
+        <div className="flex items-center h-12 px-4 gap-3">
+          {/* Logo */}
+          <img src="/mastermind-vision-type/ramsey-logo.svg" alt="Ramsey Solutions" className="h-7 w-auto flex-shrink-0" />
 
-          {/* Brand */}
-          <div className="flex items-center gap-2 mr-4">
-            <div className="flex items-center gap-1.5">
-              {/* RT shield badge */}
-              <div className="w-7 h-7 flex items-center justify-center rounded-sm flex-shrink-0" style={{ background: 'linear-gradient(160deg, #C8511B 0%, #E07030 100%)' }}>
-                <span className="text-white text-[10px] font-black tracking-tight">RT</span>
-              </div>
-              <div className="hidden sm:flex flex-col leading-none gap-px">
-                <span className="text-white text-[11px] font-bold tracking-wider uppercase" style={{ letterSpacing: '0.08em' }}>Ramsey</span>
-                <span className="text-[#A8C8F8] text-[9px] font-normal tracking-widest uppercase" style={{ letterSpacing: '0.15em' }}>Trusted</span>
-              </div>
-            </div>
-            <span className="text-[#A8C8F8] text-[12px] hidden sm:block mx-1">|</span>
-            <span className="text-[#A8C8F8] text-[12px] hidden sm:block">Masterminds</span>
-            <ChevronDown className="w-3 h-3 text-[#A8C8F8]" />
-          </div>
-
-          {/* Search */}
-          <div className="flex-1 max-w-md mx-auto">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[#706E6B] absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                className="w-full bg-white/10 border border-white/20 rounded pl-8 pr-3 py-1.5 text-[12px] text-white placeholder-[#A8C8F8] focus:outline-none focus:bg-white/20"
-                placeholder="Search..."
-              />
-            </div>
-          </div>
-
-          {/* Right utility icons */}
-          <div className="flex items-center gap-1 ml-2">
-            <button className="p-1.5 rounded hover:bg-white/10 transition-colors text-[#A8C8F8]">
-              <Bell className="w-4 h-4" />
-            </button>
-            <button className="p-1.5 rounded hover:bg-white/10 transition-colors text-[#A8C8F8]">
-              <Settings className="w-4 h-4" />
-            </button>
-            <button className="p-1.5 rounded hover:bg-white/10 transition-colors text-[#A8C8F8]">
-              <HelpCircle className="w-4 h-4" />
-            </button>
-            <div className="w-7 h-7 rounded-full bg-[#0176D3] border-2 border-white/30 flex items-center justify-center ml-1 cursor-pointer">
-              <span className="text-white text-[11px] font-bold">SJ</span>
-            </div>
-          </div>
+          {/* App title */}
+          <span className="text-[#A8C8F8] text-[12px] hidden sm:block">|</span>
+          <span className="text-[#A8C8F8] text-[12px] hidden sm:block">Masterminds</span>
         </div>
 
         {/* ── Record Tab Strip ───────────────────────────────────────────── */}
@@ -350,19 +308,6 @@ export default function App() {
             <List className="w-3 h-3" />
             Mastermind Groups
             <ChevronDown className="w-3 h-3 opacity-60" />
-          </button>
-
-          {/* Attendance report tab */}
-          <button
-            onClick={() => setActiveTabId('reports')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 text-[12px] whitespace-nowrap border-r border-white/10 transition-colors flex-shrink-0 ${
-              activeTabId === 'reports'
-                ? 'bg-[#F3F2F2] text-[#032D60] font-normal'
-                : 'text-[#A8C8F8] hover:bg-white/10'
-            }`}
-          >
-            <BarChart2 className="w-3 h-3" />
-            Attendance
           </button>
 
           {/* Open group record tabs */}
