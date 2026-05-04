@@ -5,7 +5,6 @@ import { GroupRecordPage } from './components/GroupRecordPage';
 import { CreateGroupModal } from './components/CreateGroupModal';
 import { ManageMembersModal } from './components/ManageMembersModal';
 import { CreateSessionsModal } from './components/CreateSessionsModal';
-import { RegistrationsModal } from './components/RegistrationsModal';
 import { AttendanceReport } from './components/AttendanceReport';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { SEED_PROS } from '../data/pros';
@@ -71,8 +70,6 @@ export default function App() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showManageMembers, setShowManageMembers] = useState(false);
   const [showCreateSessions, setShowCreateSessions] = useState(false);
-  const [showRegistrations, setShowRegistrations] = useState(false);
-  const [registrationsContext, setRegistrationsContext] = useState<{ groupId: string; month: string } | null>(null);
 
   // Coaches — the real RT coaching team
   const [coaches] = useState<Coach[]>([
@@ -276,51 +273,13 @@ export default function App() {
     );
   };
 
-  const handleRegisterPro = (sessionId: string, groupId: string, proId: string, month: string) => {
-    const monthSessionIds = sessions.filter(s => s.groupId === groupId && s.month === month).map(s => s.id);
-    const existingReg = registrations.find(r => r.groupId === groupId && r.proId === proId && monthSessionIds.includes(r.sessionId));
-    if (existingReg?.sessionId === sessionId) {
-      setRegistrations(prev => prev.filter(r => r.id !== existingReg.id));
-    } else {
-      const filtered = existingReg ? registrations.filter(r => r.id !== existingReg.id) : registrations;
-      setRegistrations([...filtered, { id: `r${Date.now()}`, sessionId, groupId, proId, registeredDate: new Date(), attended: null }]);
-    }
-  };
-
-  const handleMarkAttendance = (registrationId: string, attended: boolean) => {
-    setRegistrations(prev => prev.map(r => r.id === registrationId ? { ...r, attended } : r));
-  };
-
   const handleCompleteSession = (sessionId: string) => {
     setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'completed' } : s));
-  };
-
-  const handleStartSession = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (session?.zoomLink) window.open(session.zoomLink, '_blank');
-  };
-
-  const handleOpenRegistrations = (groupId: string, month: string) => {
-    setRegistrationsContext({ groupId, month });
-    setShowRegistrations(true);
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const activeGroup = activeTabId !== 'list' ? groups.find(g => g.id === activeTabId) ?? null : null;
-
-  const regModalData = registrationsContext ? (() => {
-    const { groupId, month } = registrationsContext;
-    const monthSessions = sessions.filter(s => s.groupId === groupId && s.month === month);
-    const monthSessionIds = monthSessions.map(s => s.id);
-    return {
-      group: groups.find(g => g.id === groupId)!,
-      month,
-      sessions: monthSessions,
-      registrations: registrations.filter(r => monthSessionIds.includes(r.sessionId)),
-      members: pros.filter(p => groups.find(g => g.id === groupId)?.memberIds.includes(p.id)),
-    };
-  })() : null;
 
   return (
     <div className="min-h-screen bg-[#F3F2F2] flex flex-col">
@@ -473,8 +432,7 @@ export default function App() {
             onManageMembers={() => setShowManageMembers(true)}
             onCreateSessions={() => setShowCreateSessions(true)}
             onSendInvitations={handleSendInvitations}
-            onOpenRegistrations={handleOpenRegistrations}
-            onStartSession={handleStartSession}
+            onStartSession={() => {}}
             onCompleteSession={handleCompleteSession}
             onUpdateGroup={handleUpdateGroup}
             onSyncAttendance={handleSyncAttendance}
@@ -497,21 +455,6 @@ export default function App() {
           existingMonths={[...new Set(sessions.filter(s => s.groupId === activeGroup.id).map(s => s.month))]}
           onClose={() => setShowCreateSessions(false)}
           onCreate={handleCreateSessions}
-        />
-      )}
-      {showRegistrations && regModalData && (
-        <RegistrationsModal
-          group={regModalData.group}
-          month={regModalData.month}
-          sessions={regModalData.sessions}
-          registrations={regModalData.registrations}
-          members={regModalData.members}
-          onClose={() => setShowRegistrations(false)}
-          onSendInvitations={handleSendInvitations}
-          onRegisterPro={handleRegisterPro}
-          onMarkAttendance={handleMarkAttendance}
-          onStartSession={handleStartSession}
-          onCompleteSession={handleCompleteSession}
         />
       )}
     </div>
