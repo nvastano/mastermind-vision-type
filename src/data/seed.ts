@@ -2,11 +2,18 @@ import type { MastermindGroup, MastermindSession, SessionRegistration, FixedSlot
 
 // ── Coaches (matches App.tsx) ─────────────────────────────────────────────────
 const COACHES = [
-  { id: 'c1', name: 'David LaBahn' },
-  { id: 'c2', name: 'Tori'         },
-  { id: 'c3', name: 'Colin'        },
-  { id: 'c4', name: 'Katrien'      },
-  { id: 'c5', name: 'Angelica'     },
+  { id: 'c1', name: 'David LaBahn'         },
+  { id: 'c2', name: 'Tori Wheeler'         },
+  { id: 'c3', name: 'Colin Bellios'        },
+  { id: 'c4', name: 'Katrien Shaw'         },
+  { id: 'c5', name: 'Angelica Dotson'      },
+  { id: 'c6', name: 'Lily Lee'             },
+  { id: 'c7', name: 'Ashley Cook'          },
+  { id: 'c8', name: 'Cynthia Navarro'      },
+  { id: 'c9', name: 'Conner Brooke Binkley'},
+  { id: 'c10', name: 'Justin Nguyen'       },
+  { id: 'c11', name: 'Kevin Dunn'          },
+  { id: 'c12', name: 'Sarah Francis'       },
 ];
 void COACHES; // referenced only for documentation
 
@@ -52,7 +59,7 @@ const ANGELICA_SLOTS: FixedSlot[] = [
 export const SEED_GROUPS: MastermindGroup[] = [
   {
     id: 'sg-1',
-    name: "David LaBahn's Book",
+    name: "David LaBahn Mastermind",
     coachId: 'c1',
     memberIds: proRange(1, 60),
     createdDate: new Date('2026-01-06'),
@@ -62,7 +69,7 @@ export const SEED_GROUPS: MastermindGroup[] = [
   },
   {
     id: 'sg-2',
-    name: "Tori's Book",
+    name: "Tori Wheeler Mastermind",
     coachId: 'c2',
     memberIds: proRange(61, 120),
     createdDate: new Date('2026-01-06'),
@@ -72,7 +79,7 @@ export const SEED_GROUPS: MastermindGroup[] = [
   },
   {
     id: 'sg-3',
-    name: "Colin's Book",
+    name: "Colin Bellios Mastermind",
     coachId: 'c3',
     memberIds: proRange(121, 180),
     createdDate: new Date('2026-01-06'),
@@ -82,7 +89,7 @@ export const SEED_GROUPS: MastermindGroup[] = [
   },
   {
     id: 'sg-4',
-    name: "Katrien's Book",
+    name: "Katrien Shaw Mastermind",
     coachId: 'c4',
     memberIds: proRange(181, 240),
     createdDate: new Date('2026-01-06'),
@@ -92,7 +99,7 @@ export const SEED_GROUPS: MastermindGroup[] = [
   },
   {
     id: 'sg-5',
-    name: "Angelica's Book",
+    name: "Angelica Dotson Mastermind",
     coachId: 'c5',
     memberIds: proRange(241, 300),
     createdDate: new Date('2026-01-06'),

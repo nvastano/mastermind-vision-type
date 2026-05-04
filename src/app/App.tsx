@@ -73,11 +73,21 @@ export default function App() {
 
   // Coaches — the real RT coaching team
   const [coaches] = useState<Coach[]>([
-    { id: 'c1', name: 'David LaBahn',  email: 'david.labahn@ramseyrealty.com' },
-    { id: 'c2', name: 'Tori',          email: 'tori@ramseyrealty.com' },
-    { id: 'c3', name: 'Colin',         email: 'colin@ramseyrealty.com' },
-    { id: 'c4', name: 'Katrien',       email: 'katrien@ramseyrealty.com' },
-    { id: 'c5', name: 'Angelica',      email: 'angelica@ramseyrealty.com' },
+    // Real Estate
+    { id: 'c1',  name: 'David LaBahn',         email: 'david.labahn@ramseyrealty.com' },
+    { id: 'c2',  name: 'Tori Wheeler',          email: 'tori.wheeler@ramseyrealty.com' },
+    { id: 'c3',  name: 'Colin Bellios',         email: 'colin.bellios@ramseyrealty.com' },
+    { id: 'c4',  name: 'Katrien Shaw',          email: 'katrien.shaw@ramseyrealty.com' },
+    { id: 'c5',  name: 'Angelica Dotson',       email: 'angelica.dotson@ramseyrealty.com' },
+    { id: 'c6',  name: 'Lily Lee',              email: 'lily.lee@ramseyrealty.com' },
+    // Protections
+    { id: 'c7',  name: 'Ashley Cook',           email: 'ashley.cook@ramseyrealty.com' },
+    { id: 'c8',  name: 'Cynthia Navarro',       email: 'cynthia.navarro@ramseyrealty.com' },
+    // Investing and Tax
+    { id: 'c9',  name: 'Conner Brooke Binkley', email: 'conner.binkley@ramseyrealty.com' },
+    { id: 'c10', name: 'Justin Nguyen',         email: 'justin.nguyen@ramseyrealty.com' },
+    { id: 'c11', name: 'Kevin Dunn',            email: 'kevin.dunn@ramseyrealty.com' },
+    { id: 'c12', name: 'Sarah Francis',         email: 'sarah.francis@ramseyrealty.com' },
   ]);
 
   // 300 pros — seeded from static data, persisted in localStorage
