@@ -36,6 +36,219 @@ function formatTime(hour: number, minute: number): string {
   return `${h}:${m} ${period}`;
 }
 
+// ── Fixed Groups panel ────────────────────────────────────────────────────────
+
+function FixedGroupsPanel({
+  group,
+  members,
+  onUpdateSlots,
+}: {
+  group: MastermindGroup;
+  members: Pro[];
+  onUpdateSlots: (slots: FixedSlot[]) => void;
+}) {
+  const slots = group.fixedSlots ?? [];
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingIdx, setEditingIdx]   = useState<number | null>(null);
+  const [draft, setDraft]             = useState<{ dayOfWeek: number; hour: number; minute: number } | null>(null);
+
+  const toggleExpand = (id: string) =>
+    setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const saveSlot = (idx: number) => {
+    if (!draft) return;
+    onUpdateSlots(slots.map((s, i) => i === idx ? { ...s, ...draft } : s));
+    setEditingIdx(null); setDraft(null);
+  };
+
+  const removeSlot = (idx: number) => {
+    if (slots.length <= 1) return;
+    onUpdateSlots(slots.filter((_, i) => i !== idx).map((s, i) => ({ ...s, label: `Group ${i + 1}` })));
+  };
+
+  const addSlot = () => {
+    const newSlot: FixedSlot = { id: `fs-new-${Date.now()}`, label: `Group ${slots.length + 1}`, dayOfWeek: 1, hour: 9, minute: 0, memberIds: [] };
+    onUpdateSlots([...slots, newSlot]);
+    setEditingIdx(slots.length);
+    setDraft({ dayOfWeek: 1, hour: 9, minute: 0 });
+  };
+
+  // Move a pro from one slot to another (or unassign)
+  const movePro = (proId: string, fromSlotId: string, toSlotId: string) => {
+    onUpdateSlots(slots.map(s => {
+      if (s.id === fromSlotId) return { ...s, memberIds: s.memberIds.filter(id => id !== proId) };
+      if (s.id === toSlotId)   return { ...s, memberIds: [...s.memberIds, proId] };
+      return s;
+    }));
+  };
+
+  // Assign an unassigned pro to a slot
+  const assignPro = (proId: string, toSlotId: string) => {
+    onUpdateSlots(slots.map(s => s.id === toSlotId ? { ...s, memberIds: [...s.memberIds, proId] } : s));
+  };
+
+  // Unassign a pro (remove from their current slot)
+  const unassignPro = (proId: string, fromSlotId: string) => {
+    onUpdateSlots(slots.map(s => s.id === fromSlotId ? { ...s, memberIds: s.memberIds.filter(id => id !== proId) } : s));
+  };
+
+  const assignedIds = new Set(slots.flatMap(s => s.memberIds));
+  const unassigned  = members.filter(m => !assignedIds.has(m.id));
+
+  return (
+    <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-[#DDDBDA] flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-[#0176D3]" />
+          <h2 className="text-[13px] font-bold text-[#080707]">Fixed Groups</h2>
+          <span className="text-[11px] text-[#706E6B]">{slots.length} group{slots.length !== 1 ? 's' : ''}</span>
+          {unassigned.length > 0 && (
+            <span className="text-[11px] bg-[#FEF3E2] text-[#7A4F00] px-2 py-0.5 rounded-full">
+              {unassigned.length} unassigned
+            </span>
+          )}
+        </div>
+        <button onClick={addSlot} className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5">
+          <Plus className="w-3.5 h-3.5" /> Add Group
+        </button>
+      </div>
+
+      {slots.length === 0 ? (
+        <div className="py-10 text-center">
+          <Users className="w-8 h-8 text-[#C9C7C5] mx-auto mb-2" />
+          <p className="text-[#706E6B] text-[13px] mb-3">No groups defined yet.</p>
+          <button onClick={addSlot} className="px-4 py-2 bg-[#0176D3] text-white text-[13px] rounded hover:bg-[#014486] transition-colors inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add First Group
+          </button>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#DDDBDA]">
+          {slots.map((slot, i) => {
+            const isEditing  = editingIdx === i;
+            const isExpanded = expandedIds.has(slot.id);
+            const slotMembers = slot.memberIds.map(id => members.find(m => m.id === id)).filter(Boolean) as Pro[];
+            const otherSlots  = slots.filter(s => s.id !== slot.id);
+
+            return (
+              <div key={slot.id}>
+                {/* Slot header row */}
+                <div className="px-4 py-3">
+                  {isEditing && draft ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
+                      <select value={draft.dayOfWeek} onChange={e => setDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
+                        className="flex-1 min-w-[120px] px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
+                        {[1,2,3,4,5].map(d => <option key={d} value={d}>{DAYS[d]}</option>)}
+                      </select>
+                      <input type="time"
+                        value={`${String(draft.hour).padStart(2,'0')}:${String(draft.minute).padStart(2,'0')}`}
+                        onChange={e => { const [h,m] = e.target.value.split(':').map(Number); setDraft(d => d ? { ...d, hour: h, minute: m } : d); }}
+                        className="w-28 px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]"
+                      />
+                      <button onClick={() => saveSlot(i)} className="px-2.5 py-1.5 bg-[#0176D3] text-white text-[11px] rounded hover:bg-[#014486] transition-colors flex items-center gap-1">
+                        <Save className="w-3 h-3" /> Save
+                      </button>
+                      <button onClick={() => { setEditingIdx(null); setDraft(null); }} className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2]">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {/* Expand toggle */}
+                      <button onClick={() => toggleExpand(slot.id)} className="p-0.5 rounded hover:bg-[#F3F2F2] text-[#706E6B] transition-colors">
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+                      <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
+                      <span className="text-[13px] text-[#080707] flex-1">{DAYS[slot.dayOfWeek]} · {formatTime(slot.hour, slot.minute)}</span>
+                      <span className="text-[11px] text-[#706E6B]">{slotMembers.length} member{slotMembers.length !== 1 ? 's' : ''}</span>
+                      <button onClick={() => { setEditingIdx(i); setDraft({ dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
+                        className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors" title="Edit schedule">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => removeSlot(i)} disabled={slots.length <= 1}
+                        className="p-1.5 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Remove group">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Expanded member list */}
+                {isExpanded && !isEditing && (
+                  <div className="border-t border-[#DDDBDA] bg-[#FAFAF9] px-4 py-2">
+                    {slotMembers.length === 0 ? (
+                      <p className="text-[11px] text-[#706E6B] italic py-2">No members assigned to this group.</p>
+                    ) : (
+                      <div className="divide-y divide-[#F3F2F2]">
+                        {slotMembers.map(pro => (
+                          <div key={pro.id} className="flex items-center gap-3 py-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] text-[#080707] truncate">{pro.name}</p>
+                              <p className="text-[11px] text-[#706E6B] truncate">{pro.email}</p>
+                            </div>
+                            {/* Move to another group */}
+                            <select
+                              value=""
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === '__unassign__') unassignPro(pro.id, slot.id);
+                                else movePro(pro.id, slot.id, val);
+                              }}
+                              className="text-[11px] border border-[#DDDBDA] rounded px-2 py-1 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer"
+                            >
+                              <option value="" disabled>Move to…</option>
+                              {otherSlots.map(s => (
+                                <option key={s.id} value={s.id}>{s.label}</option>
+                              ))}
+                              <option value="__unassign__">Unassign</option>
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Unassigned members */}
+          {unassigned.length > 0 && (
+            <div>
+              <div className="px-4 py-2.5 bg-[#FEF3E2] flex items-center gap-2">
+                <span className="text-[12px] font-bold text-[#7A4F00]">Unassigned</span>
+                <span className="text-[11px] text-[#7A4F00]">({unassigned.length})</span>
+                <span className="text-[11px] text-[#7A4F00]">— assign each pro to a group below</span>
+              </div>
+              <div className="bg-[#FAFAF9] px-4 divide-y divide-[#F3F2F2]">
+                {unassigned.map(pro => (
+                  <div key={pro.id} className="flex items-center gap-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-[#080707] truncate">{pro.name}</p>
+                      <p className="text-[11px] text-[#706E6B] truncate">{pro.email}</p>
+                    </div>
+                    <select
+                      value=""
+                      onChange={e => assignPro(pro.id, e.target.value)}
+                      className="text-[11px] border border-[#DDDBDA] rounded px-2 py-1 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer"
+                    >
+                      <option value="" disabled>Assign to…</option>
+                      {slots.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Session label helper ──────────────────────────────────────────────────────
 
 function getSessionLabel(session: MastermindSession, group: MastermindGroup): string {
@@ -247,9 +460,6 @@ export function GroupRecordPage({
   const [membersOpen, setMembersOpen]   = useState(false);
   const nameInputRef                    = useRef<HTMLInputElement>(null);
 
-  // Fixed slot editing state
-  const [editingSlotIdx, setEditingSlotIdx] = useState<number | null>(null);
-  const [slotDraft, setSlotDraft] = useState<{ dayOfWeek: number; hour: number; minute: number } | null>(null);
 
   useEffect(() => { setNameValue(group.name); }, [group.name]);
   useEffect(() => { if (editingName) nameInputRef.current?.select(); }, [editingName]);
@@ -397,137 +607,13 @@ export function GroupRecordPage({
       <div className="p-4 space-y-4">
 
         {/* Fixed Groups section — only for fixed type */}
-        {group.type === 'fixed' && (() => {
-          const slots = group.fixedSlots ?? [];
-
-          const saveSlot = (idx: number) => {
-            if (!slotDraft) return;
-            const updated = slots.map((s, i) =>
-              i === idx ? { ...s, dayOfWeek: slotDraft.dayOfWeek, hour: slotDraft.hour, minute: slotDraft.minute } : s
-            );
-            onUpdateFixedSlots(group.id, updated);
-            setEditingSlotIdx(null);
-            setSlotDraft(null);
-          };
-
-          const removeSlot = (idx: number) => {
-            if (slots.length <= 1) return;
-            const updated = slots.filter((_, i) => i !== idx).map((s, i) => ({ ...s, label: `Group ${i + 1}` }));
-            onUpdateFixedSlots(group.id, updated);
-          };
-
-          const addSlot = () => {
-            const newSlot: FixedSlot = {
-              id: `fs-new-${Date.now()}`,
-              label: `Group ${slots.length + 1}`,
-              dayOfWeek: 1,
-              hour: 9,
-              minute: 0,
-              memberIds: [],
-            };
-            onUpdateFixedSlots(group.id, [...slots, newSlot]);
-            setEditingSlotIdx(slots.length);
-            setSlotDraft({ dayOfWeek: 1, hour: 9, minute: 0 });
-          };
-
-          return (
-            <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
-              <div className="px-4 py-3 border-b border-[#DDDBDA] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#0176D3]" />
-                  <h2 className="text-[13px] font-bold text-[#080707]">Fixed Groups</h2>
-                  <span className="text-[11px] text-[#706E6B]">{slots.length} group{slots.length !== 1 ? 's' : ''}</span>
-                </div>
-                <button
-                  onClick={addSlot}
-                  className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Group
-                </button>
-              </div>
-
-              {slots.length === 0 ? (
-                <div className="py-10 text-center">
-                  <Users className="w-8 h-8 text-[#C9C7C5] mx-auto mb-2" />
-                  <p className="text-[#706E6B] text-[13px] mb-3">No groups defined yet.</p>
-                  <button
-                    onClick={addSlot}
-                    className="px-4 py-2 bg-[#0176D3] text-white text-[13px] rounded border border-[#0176D3] hover:bg-[#014486] transition-colors inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Add First Group
-                  </button>
-                </div>
-              ) : (
-                <div className="divide-y divide-[#DDDBDA]">
-                  {slots.map((slot, i) => {
-                    const isEditing = editingSlotIdx === i;
-                    const memberCount = slot.memberIds.length;
-                    return (
-                      <div key={slot.id} className="px-4 py-3">
-                        {isEditing && slotDraft ? (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
-                            <select
-                              value={slotDraft.dayOfWeek}
-                              onChange={e => setSlotDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
-                              className="flex-1 min-w-[120px] px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
-                            >
-                              {[1,2,3,4,5].map(d => (
-                                <option key={d} value={d}>{DAYS[d]}</option>
-                              ))}
-                            </select>
-                            <input
-                              type="time"
-                              value={`${String(slotDraft.hour).padStart(2,'0')}:${String(slotDraft.minute).padStart(2,'0')}`}
-                              onChange={e => {
-                                const [h, m] = e.target.value.split(':').map(Number);
-                                setSlotDraft(d => d ? { ...d, hour: h, minute: m } : d);
-                              }}
-                              className="w-28 px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
-                            />
-                            <button
-                              onClick={() => saveSlot(i)}
-                              className="px-2.5 py-1.5 bg-[#0176D3] text-white text-[11px] rounded border border-[#0176D3] hover:bg-[#014486] transition-colors flex items-center gap-1"
-                            >
-                              <Save className="w-3 h-3" /> Save
-                            </button>
-                            <button
-                              onClick={() => { setEditingSlotIdx(null); setSlotDraft(null); }}
-                              className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3">
-                            <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
-                            <span className="text-[13px] text-[#080707] flex-1">{DAYS[slot.dayOfWeek]} · {formatTime(slot.hour, slot.minute)}</span>
-                            <span className="text-[11px] text-[#706E6B]">{memberCount} member{memberCount !== 1 ? 's' : ''}</span>
-                            <button
-                              onClick={() => { setEditingSlotIdx(i); setSlotDraft({ dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
-                              className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => removeSlot(i)}
-                              disabled={slots.length <= 1}
-                              className="p-1.5 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                              title="Remove"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {group.type === 'fixed' && (
+          <FixedGroupsPanel
+            group={group}
+            members={members}
+            onUpdateSlots={(slots) => onUpdateFixedSlots(group.id, slots)}
+          />
+        )}
 
         {/* Sessions section */}
         <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
