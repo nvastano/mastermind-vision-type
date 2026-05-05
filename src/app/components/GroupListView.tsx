@@ -90,9 +90,6 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
         <table className="w-full">
           <thead>
             <tr className="bg-[#FAFAF9] border-b border-[#DDDBDA]">
-              <th className="w-10 px-3 py-2">
-                <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#DDDBDA]" />
-              </th>
               {['Group Name', 'Coach', 'Type', 'Status', 'Members'].map(h => (
                 <th
                   key={h}
@@ -113,9 +110,6 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
                   className="bg-white hover:bg-[#F3F2F2] transition-colors cursor-pointer group"
                   onClick={() => onOpenGroup(group.id)}
                 >
-                  <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#DDDBDA]" />
-                  </td>
 
                   {/* Name */}
                   <td className="px-3 py-2">
