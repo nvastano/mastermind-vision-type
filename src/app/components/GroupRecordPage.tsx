@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration } from '../App';
-import { ProRecordModal } from './ProRecordModal';
 import { BulkEmailModal } from './BulkEmailModal';
 
 type Props = {
@@ -29,6 +28,7 @@ type Props = {
   onUpdateGroup: (groupId: string, updates: Partial<Pick<MastermindGroup, 'name' | 'status'>>) => void;
   onSyncAttendance: (sessionId: string) => void;
   onUpdateAttendance: (regId: string, attended: boolean | null) => void;
+  onOpenPro: (pro: Pro) => void;
   onGenerateFixedSessions: (month: string) => void;
 };
 
@@ -236,9 +236,9 @@ export function GroupRecordPage({
   onUpdateGroup,
   onSyncAttendance,
   onUpdateAttendance,
+  onOpenPro,
   onGenerateFixedSessions,
 }: Props) {
-  const [selectedPro, setSelectedPro]   = useState<Pro | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [editingName, setEditingName]   = useState(false);
   const [nameValue, setNameValue]       = useState(group.name);
@@ -490,7 +490,7 @@ export function GroupRecordPage({
                     onComplete={onCompleteSession}
                     onSync={onSyncAttendance}
                     onUpdateAttendance={onUpdateAttendance}
-                    onOpenPro={setSelectedPro}
+                    onOpenPro={onOpenPro}
                   />
                 );
               })}
@@ -552,7 +552,7 @@ export function GroupRecordPage({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setSelectedPro(member)}
+                              onClick={() => onOpenPro(member)}
                               className="text-[13px] text-[#0176D3] hover:underline text-left truncate"
                             >
                               {member.name}
@@ -578,19 +578,6 @@ export function GroupRecordPage({
       </div>
 
       {/* Modals */}
-      {selectedPro && (
-        <ProRecordModal
-          pro={selectedPro}
-          group={group}
-          coach={coach}
-          allSessions={allSessions}
-          allRegistrations={allRegistrations}
-          allGroups={allGroups}
-          allCoaches={allCoaches}
-          allPros={allPros}
-          onClose={() => setSelectedPro(null)}
-        />
-      )}
       {emailModalOpen && (
         <BulkEmailModal
           group={group}

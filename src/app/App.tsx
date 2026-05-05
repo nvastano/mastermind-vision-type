@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, X, List } from 'lucide-react';
+import { Plus, X, List, User } from 'lucide-react';
 import { GroupListView } from './components/GroupListView';
 import { GroupRecordPage } from './components/GroupRecordPage';
+import { ProRecordPage } from './components/ProRecordPage';
 import { CreateGroupModal } from './components/CreateGroupModal';
 import { ManageMembersModal } from './components/ManageMembersModal';
 import { CreateSessionsModal } from './components/CreateSessionsModal';
@@ -118,19 +119,23 @@ export default function App() {
 
   // ── Tab Management ────────────────────────────────────────────────────────
 
-  const openGroupTab = (groupId: string) => {
-    if (!openTabIds.includes(groupId)) {
-      setOpenTabIds(prev => [...prev, groupId]);
+  const openTab = (id: string) => {
+    if (!openTabIds.includes(id)) {
+      setOpenTabIds(prev => [...prev, id]);
     }
-    setActiveTabId(groupId);
+    setActiveTabId(id);
   };
 
-  const closeTab = (groupId: string, e: React.MouseEvent) => {
+  // Convenience aliases
+  const openGroupTab = openTab;
+  const openProTab   = (proId: string) => openTab(proId);
+
+  const closeTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const idx = openTabIds.indexOf(groupId);
-    const next = openTabIds.filter(id => id !== groupId);
+    const idx = openTabIds.indexOf(id);
+    const next = openTabIds.filter(tid => tid !== id);
     setOpenTabIds(next);
-    if (activeTabId === groupId) {
+    if (activeTabId === id) {
       setActiveTabId(idx > 0 && next[idx - 1] ? next[idx - 1] : 'list');
     }
   };
@@ -292,24 +297,27 @@ export default function App() {
             Mastermind Groups
           </button>
 
-          {/* Open group record tabs */}
-          {openTabIds.map(gid => {
-            const g = groups.find(gr => gr.id === gid);
-            if (!g) return null;
-            const isActive = activeTabId === gid;
+          {/* Open tabs — group records and pro contact records */}
+          {openTabIds.map(tid => {
+            const isActive = activeTabId === tid;
+            const isPro    = tid.startsWith('pro-');
+            const label    = isPro
+              ? (pros.find(p => p.id === tid)?.name ?? tid)
+              : (groups.find(g => g.id === tid)?.name ?? tid);
             return (
               <button
-                key={gid}
-                onClick={() => setActiveTabId(gid)}
+                key={tid}
+                onClick={() => setActiveTabId(tid)}
                 className={`flex items-center gap-1.5 px-3 text-[12px] whitespace-nowrap transition-colors flex-shrink-0 group relative ${
                   isActive
                     ? 'bg-[#F3F2F2] text-[#032D60] font-semibold pt-[3px] pb-[7px] border-t-2 border-t-[#0176D3]'
                     : 'text-[#A8C8F8] hover:bg-white/10 py-[6px]'
                 }`}
               >
-                <span className="max-w-[140px] truncate">{g.name}</span>
+                {isPro && <User className="w-3 h-3 flex-shrink-0" />}
+                <span className="max-w-[140px] truncate">{label}</span>
                 <span
-                  onClick={e => closeTab(gid, e)}
+                  onClick={e => closeTab(tid, e)}
                   className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-black/20 rounded p-0.5 transition-all"
                 >
                   <X className="w-2.5 h-2.5" />
@@ -346,6 +354,20 @@ export default function App() {
             sessions={sessions}
             registrations={registrations}
           />
+        ) : activeTabId.startsWith('pro-') ? (
+          // Pro contact record tab
+          (() => {
+            const activePro = pros.find(p => p.id === activeTabId);
+            return activePro ? (
+              <ProRecordPage
+                pro={activePro}
+                allSessions={sessions}
+                allRegistrations={registrations}
+                allGroups={groups}
+                allCoaches={coaches}
+              />
+            ) : null;
+          })()
         ) : activeGroup ? (
           <GroupRecordPage
             group={activeGroup}
@@ -367,6 +389,7 @@ export default function App() {
             onUpdateGroup={handleUpdateGroup}
             onSyncAttendance={handleSyncAttendance}
             onUpdateAttendance={handleUpdateAttendance}
+            onOpenPro={(pro) => openProTab(pro.id)}
             onGenerateFixedSessions={(month) => handleGenerateFixedSessions(activeGroup.id, month)}
           />
         ) : null}
