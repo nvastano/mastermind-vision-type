@@ -47,6 +47,13 @@ const DAY_FILTERS = [
   { label: 'Fri', value: 5 },
 ];
 
+const ORDINALS = ['1st', '2nd', '3rd', '4th'];
+
+function slotDisplayName(slot: FixedSlot): string {
+  const week = ORDINALS[(slot.weekOfMonth ?? 1) - 1] ?? `${slot.weekOfMonth}th`;
+  return `${week} ${DAYS[slot.dayOfWeek].slice(0, 3)} · ${formatTime(slot.hour, slot.minute)}`;
+}
+
 function FixedGroupsPanel({
   group,
   members,
@@ -59,7 +66,7 @@ function FixedGroupsPanel({
   const slots = group.fixedSlots ?? [];
   const [expandedIds, setExpandedIds]   = useState<Set<string>>(new Set());
   const [editingIdx, setEditingIdx]     = useState<number | null>(null);
-  const [draft, setDraft]               = useState<{ dayOfWeek: number; hour: number; minute: number } | null>(null);
+  const [draft, setDraft]               = useState<{ weekOfMonth: number; dayOfWeek: number; hour: number; minute: number } | null>(null);
   const [search, setSearch]             = useState('');
   const [dayFilter, setDayFilter]       = useState(0);
   const [sortAsc, setSortAsc]           = useState(true);
@@ -70,48 +77,38 @@ function FixedGroupsPanel({
 
   const saveSlot = (idx: number) => {
     if (!draft) return;
-    onUpdateSlots(slots.map((s, i) => i === idx ? { ...s, ...draft } : s));
+    const updated = slots.map((s, i) => {
+      if (i !== idx) return s;
+      const week  = ORDINALS[(draft.weekOfMonth - 1)] ?? `${draft.weekOfMonth}th`;
+      const label = `${week} ${DAYS[draft.dayOfWeek].slice(0,3)} · ${formatTime(draft.hour, draft.minute)}`;
+      return { ...s, ...draft, label };
+    });
+    onUpdateSlots(updated);
     setEditingIdx(null); setDraft(null);
   };
 
   const removeSlot = (idx: number) => {
     if (slots.length <= 1) return;
-    onUpdateSlots(slots.filter((_, i) => i !== idx).map((s, i) => ({ ...s, label: `Group ${i + 1}` })));
+    onUpdateSlots(slots.filter((_, i) => i !== idx));
   };
 
   const addSlot = () => {
-    const newSlot: FixedSlot = { id: `fs-new-${Date.now()}`, label: `Group ${slots.length + 1}`, dayOfWeek: 1, hour: 9, minute: 0, memberIds: [] };
+    const newSlot: FixedSlot = {
+      id: `fs-new-${Date.now()}`,
+      label: '1st Mon · 9:00 AM',
+      weekOfMonth: 1, dayOfWeek: 1, hour: 9, minute: 0,
+      memberIds: [],
+    };
     onUpdateSlots([...slots, newSlot]);
     setEditingIdx(slots.length);
-    setDraft({ dayOfWeek: 1, hour: 9, minute: 0 });
+    setDraft({ weekOfMonth: 1, dayOfWeek: 1, hour: 9, minute: 0 });
   };
-
-  const movePro = (proId: string, fromSlotId: string, toSlotId: string) => {
-    onUpdateSlots(slots.map(s => {
-      if (s.id === fromSlotId) return { ...s, memberIds: s.memberIds.filter(id => id !== proId) };
-      if (s.id === toSlotId)   return { ...s, memberIds: [...s.memberIds, proId] };
-      return s;
-    }));
-  };
-
-  const assignPro = (proId: string, toSlotId: string) => {
-    onUpdateSlots(slots.map(s => s.id === toSlotId ? { ...s, memberIds: [...s.memberIds, proId] } : s));
-  };
-
-  const unassignPro = (proId: string, fromSlotId: string) => {
-    onUpdateSlots(slots.map(s => s.id === fromSlotId ? { ...s, memberIds: s.memberIds.filter(id => id !== proId) } : s));
-  };
-
-  const assignedIds = new Set(slots.flatMap(s => s.memberIds));
-  const unassigned  = members.filter(m => !assignedIds.has(m.id));
 
   const visibleSlots = slots
     .filter(s => {
       const matchDay  = dayFilter === 0 || s.dayOfWeek === dayFilter;
-      const matchText = search === '' ||
-        s.label.toLowerCase().includes(search.toLowerCase()) ||
-        DAYS[s.dayOfWeek].toLowerCase().includes(search.toLowerCase()) ||
-        formatTime(s.hour, s.minute).toLowerCase().includes(search.toLowerCase());
+      const name      = slotDisplayName(s).toLowerCase();
+      const matchText = search === '' || name.includes(search.toLowerCase());
       return matchDay && matchText;
     })
     .slice()
@@ -134,11 +131,6 @@ function FixedGroupsPanel({
               ? `${slots.length} group${slots.length !== 1 ? 's' : ''}`
               : `${visibleSlots.length} of ${slots.length}`}
           </span>
-          {unassigned.length > 0 && (
-            <span className="text-[11px] bg-[#FEF3E2] text-[#7A4F00] px-2 py-0.5 rounded-full">
-              {unassigned.length} unassigned
-            </span>
-          )}
         </div>
         <button onClick={addSlot}
           className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5 flex-shrink-0">
@@ -199,7 +191,6 @@ function FixedGroupsPanel({
                 const isEditing   = editingIdx === origIdx;
                 const isExpanded  = expandedIds.has(slot.id);
                 const slotMembers = slot.memberIds.map(id => members.find(m => m.id === id)).filter(Boolean) as Pro[];
-                const otherSlots  = slots.filter(s => s.id !== slot.id);
                 const mSearch     = memberSearch[slot.id] ?? '';
                 const filteredMembers = mSearch
                   ? slotMembers.filter(p =>
@@ -212,10 +203,14 @@ function FixedGroupsPanel({
                     <div className={`px-4 py-2.5 ${isExpanded ? 'bg-[#EEF4FF]' : 'hover:bg-[#FAFAF9]'} transition-colors`}>
                       {isEditing && draft ? (
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
+                          <select value={draft.weekOfMonth}
+                            onChange={e => setDraft(d => d ? { ...d, weekOfMonth: Number(e.target.value) } : d)}
+                            className="px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
+                            {[1,2,3,4].map(w => <option key={w} value={w}>{ORDINALS[w-1]}</option>)}
+                          </select>
                           <select value={draft.dayOfWeek}
                             onChange={e => setDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
-                            className="flex-1 min-w-[110px] px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
+                            className="flex-1 min-w-[100px] px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
                             {[1,2,3,4,5].map(d => <option key={d} value={d}>{DAYS[d]}</option>)}
                           </select>
                           <input type="time"
@@ -238,15 +233,17 @@ function FixedGroupsPanel({
                             className="p-0.5 rounded hover:bg-[#DDDBDA] text-[#706E6B] transition-colors flex-shrink-0">
                             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
-                          <span className="w-8 text-[10px] font-bold text-[#0176D3] text-center flex-shrink-0">
-                            {DAYS[slot.dayOfWeek].slice(0,3).toUpperCase()}
+                          {/* Week + day badge */}
+                          <span className="text-[10px] font-bold text-[#0176D3] bg-[#EEF4FF] rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap">
+                            {ORDINALS[(slot.weekOfMonth ?? 1) - 1]} {DAYS[slot.dayOfWeek].slice(0,3).toUpperCase()}
                           </span>
-                          <span className="text-[12px] text-[#080707] w-20 flex-shrink-0">{formatTime(slot.hour, slot.minute)}</span>
-                          <span className="text-[12px] font-bold text-[#706E6B] flex-1 truncate">{slot.label}</span>
+                          <span className="text-[13px] font-semibold text-[#080707] flex-1 truncate">
+                            {formatTime(slot.hour, slot.minute)}
+                          </span>
                           <span className="text-[11px] text-[#706E6B] flex-shrink-0 w-20 text-right">
                             {slotMembers.length} member{slotMembers.length !== 1 ? 's' : ''}
                           </span>
-                          <button onClick={() => { setEditingIdx(origIdx); setDraft({ dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
+                          <button onClick={() => { setEditingIdx(origIdx); setDraft({ weekOfMonth: slot.weekOfMonth ?? 1, dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
                             className="p-1 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors flex-shrink-0" title="Edit">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -280,22 +277,8 @@ function FixedGroupsPanel({
                             </p>
                           ) : filteredMembers.map(pro => (
                             <div key={pro.id} className="flex items-center gap-3 py-1.5">
-                              <div className="flex-1 min-w-0">
-                                <span className="text-[12px] text-[#080707]">{pro.name}</span>
-                                <span className="text-[11px] text-[#706E6B] ml-2">{pro.email}</span>
-                              </div>
-                              <select value="" onChange={e => {
-                                const val = e.target.value;
-                                if (val === '__unassign__') unassignPro(pro.id, slot.id);
-                                else movePro(pro.id, slot.id, val);
-                              }}
-                                className="text-[11px] border border-[#DDDBDA] rounded px-2 py-0.5 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer flex-shrink-0">
-                                <option value="" disabled>Move to…</option>
-                                {otherSlots.map(s => (
-                                  <option key={s.id} value={s.id}>{DAYS[s.dayOfWeek].slice(0,3)} {formatTime(s.hour, s.minute)} · {s.label}</option>
-                                ))}
-                                <option value="__unassign__">— Unassign</option>
-                              </select>
+                              <span className="text-[12px] text-[#080707]">{pro.name}</span>
+                              <span className="text-[11px] text-[#706E6B]">{pro.email}</span>
                             </div>
                           ))}
                         </div>
@@ -304,33 +287,6 @@ function FixedGroupsPanel({
                   </div>
                 );
               })}
-            </div>
-          )}
-
-          {/* Unassigned section */}
-          {unassigned.length > 0 && (
-            <div className="border-t-2 border-[#FE9339]">
-              <div className="px-4 py-2 bg-[#FEF3E2] flex items-center gap-2">
-                <span className="text-[12px] font-bold text-[#7A4F00]">Unassigned ({unassigned.length})</span>
-                <span className="text-[11px] text-[#7A4F00]">— use the dropdown to assign each pro to a group</span>
-              </div>
-              <div className="bg-[#FAFAF9] px-4 divide-y divide-[#F3F2F2] max-h-64 overflow-y-auto">
-                {unassigned.map(pro => (
-                  <div key={pro.id} className="flex items-center gap-3 py-1.5">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[12px] text-[#080707]">{pro.name}</span>
-                      <span className="text-[11px] text-[#706E6B] ml-2">{pro.email}</span>
-                    </div>
-                    <select value="" onChange={e => assignPro(pro.id, e.target.value)}
-                      className="text-[11px] border border-[#DDDBDA] rounded px-2 py-0.5 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer flex-shrink-0">
-                      <option value="" disabled>Assign to…</option>
-                      {slots.map(s => (
-                        <option key={s.id} value={s.id}>{DAYS[s.dayOfWeek].slice(0,3)} {formatTime(s.hour, s.minute)} · {s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </>
@@ -345,7 +301,7 @@ function getSessionLabel(session: MastermindSession, group: MastermindGroup): st
   if (session.sessionType === 'makeup') return 'Makeup';
   if (session.sessionType === 'fixed_slot' && group.fixedSlots) {
     const slot = group.fixedSlots.find(s => s.id === session.slotId);
-    if (slot) return slot.label;
+    if (slot) return slotDisplayName(slot);
   }
   const labels = ['Option A', 'Option B', 'Option C'];
   return labels[session.sessionNumber - 1] ?? `Session ${session.sessionNumber}`;
@@ -864,9 +820,8 @@ export function GroupRecordPage({
                       r => r.proId === member.id && latestIds.includes(r.sessionId)
                     );
                     // Cohort label for fixed groups
-                    const cohortLabel = group.fixedSlots
-                      ? group.fixedSlots.find(sl => sl.memberIds.includes(member.id))?.label
-                      : undefined;
+                    const cohortSlot = group.fixedSlots?.find(sl => sl.memberIds.includes(member.id));
+                    const cohortLabel = cohortSlot ? slotDisplayName(cohortSlot) : undefined;
 
                     return (
                       <div key={member.id} className="px-4 py-3 flex items-center gap-3 hover:bg-[#F3F2F2] transition-colors">

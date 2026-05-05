@@ -25,8 +25,9 @@ export type Coach = {
 
 export type FixedSlot = {
   id: string;
-  label: string;       // "Cohort 1", "Cohort 2", "Cohort 3"
+  label: string;
   dayOfWeek: number;   // 0=Sun, 1=Mon ... 6=Sat
+  weekOfMonth: number; // 1=1st, 2=2nd, 3=3rd, 4=4th occurrence in the month
   hour: number;
   minute: number;
   memberIds: string[]; // which pros belong to this cohort

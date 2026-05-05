@@ -9,21 +9,21 @@ function proRange(start: number, end: number): string[] {
 
 // ── Fixed slots ───────────────────────────────────────────────────────────────
 const DAVID_SLOTS: FixedSlot[] = [
-  { id: 'fs-d-1', label: 'Group 1', dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(1,  20) },
-  { id: 'fs-d-2', label: 'Group 2', dayOfWeek: 3, hour: 14, minute: 0,  memberIds: proRange(21, 40) },
-  { id: 'fs-d-3', label: 'Group 3', dayOfWeek: 5, hour: 18, minute: 0,  memberIds: proRange(41, 60) },
+  { id: 'fs-d-1', label: '1st Mon · 10:00 AM', weekOfMonth: 1, dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(1,  20) },
+  { id: 'fs-d-2', label: '2nd Mon · 10:00 AM', weekOfMonth: 2, dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(21, 40) },
+  { id: 'fs-d-3', label: '3rd Mon · 10:00 AM', weekOfMonth: 3, dayOfWeek: 1, hour: 10, minute: 0,  memberIds: proRange(41, 60) },
 ];
 
 const TORI_SLOTS: FixedSlot[] = [
-  { id: 'fs-t-1', label: 'Group 1', dayOfWeek: 1, hour:  9, minute:  0, memberIds: proRange(61,  80) },
-  { id: 'fs-t-2', label: 'Group 2', dayOfWeek: 3, hour: 13, minute:  0, memberIds: proRange(81, 100) },
-  { id: 'fs-t-3', label: 'Group 3', dayOfWeek: 5, hour:  9, minute: 30, memberIds: proRange(101, 120) },
+  { id: 'fs-t-1', label: '1st Wed · 9:00 AM',  weekOfMonth: 1, dayOfWeek: 3, hour:  9, minute:  0, memberIds: proRange(61,  80) },
+  { id: 'fs-t-2', label: '2nd Wed · 9:00 AM',  weekOfMonth: 2, dayOfWeek: 3, hour:  9, minute:  0, memberIds: proRange(81, 100) },
+  { id: 'fs-t-3', label: '3rd Wed · 9:00 AM',  weekOfMonth: 3, dayOfWeek: 3, hour:  9, minute:  0, memberIds: proRange(101, 120) },
 ];
 
 const COLIN_SLOTS: FixedSlot[] = [
-  { id: 'fs-c-1', label: 'Group 1', dayOfWeek: 2, hour: 11, minute:  0, memberIds: proRange(121, 140) },
-  { id: 'fs-c-2', label: 'Group 2', dayOfWeek: 4, hour: 15, minute:  0, memberIds: proRange(141, 160) },
-  { id: 'fs-c-3', label: 'Group 3', dayOfWeek: 1, hour: 19, minute:  0, memberIds: proRange(161, 180) },
+  { id: 'fs-c-1', label: '1st Tue · 11:00 AM', weekOfMonth: 1, dayOfWeek: 2, hour: 11, minute:  0, memberIds: proRange(121, 140) },
+  { id: 'fs-c-2', label: '2nd Tue · 11:00 AM', weekOfMonth: 2, dayOfWeek: 2, hour: 11, minute:  0, memberIds: proRange(141, 160) },
+  { id: 'fs-c-3', label: '3rd Tue · 11:00 AM', weekOfMonth: 3, dayOfWeek: 2, hour: 11, minute:  0, memberIds: proRange(161, 180) },
 ];
 
 // ── Groups ────────────────────────────────────────────────────────────────────
@@ -130,6 +130,7 @@ function buildFixedSessions(
       month:         month.key,
       sessionNumber: si + 1,
       date:          new Date(year, mo - 1, month.slotDays[si], slot.hour, slot.minute),
+      weekOfMonth:   slot.weekOfMonth,
       status:        month.status,
       zoomLink:      `https://zoom.us/j/${zoomBase + mi * 1000 + si}`,
       sessionType:   'fixed_slot' as const,
