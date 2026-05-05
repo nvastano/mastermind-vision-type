@@ -4,25 +4,40 @@ import type { Pro, MastermindGroup, Coach, MastermindSession, SessionRegistratio
 
 type Props = {
   pro: Pro;
+  // context: which group the user clicked through from (for breadcrumb)
   group: MastermindGroup;
   coach: Coach;
-  sessions: MastermindSession[];
-  registrations: SessionRegistration[];
+  // full cross-group data
+  allSessions: MastermindSession[];
+  allRegistrations: SessionRegistration[];
+  allGroups: MastermindGroup[];
+  allCoaches: Coach[];
+  allPros: Pro[];
   onClose: () => void;
 };
 
-const SESSION_LABELS = ['Option A', 'Option B', 'Option C', 'Makeup'] as const;
-function getSessionLabel(sessionNumber: number): string {
-  return SESSION_LABELS[sessionNumber - 1] ?? `Session ${sessionNumber}`;
+function getSessionLabel(session: MastermindSession): string {
+  if (session.sessionType === 'makeup') return 'Makeup';
+  if (session.sessionType === 'fixed_slot') return 'Monthly Session';
+  const labels = ['Option A', 'Option B', 'Option C'];
+  return labels[session.sessionNumber - 1] ?? `Session ${session.sessionNumber}`;
 }
 
-export function ProRecordModal({ pro, group, coach, sessions, registrations, onClose }: Props) {
-  // All registrations for this pro, sorted newest first
-  const proRegs = registrations
+export function ProRecordModal({
+  pro,
+  group,
+  coach,
+  allSessions,
+  allRegistrations,
+  allGroups,
+  onClose,
+}: Props) {
+  // All registrations for this pro, across ALL groups, newest first
+  const proRegs = allRegistrations
     .filter(r => r.proId === pro.id)
     .sort((a, b) => {
-      const sA = sessions.find(s => s.id === a.sessionId);
-      const sB = sessions.find(s => s.id === b.sessionId);
+      const sA = allSessions.find(s => s.id === a.sessionId);
+      const sB = allSessions.find(s => s.id === b.sessionId);
       return (sB?.date.getTime() ?? 0) - (sA?.date.getTime() ?? 0);
     });
 
@@ -30,11 +45,8 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
   const totalRegs     = proRegs.length;
   const attRate       = totalRegs > 0 ? Math.round((totalAttended / totalRegs) * 100) : null;
 
-  // Group regs by month
-  const months = [...new Set(proRegs.map(r => {
-    const s = sessions.find(se => se.id === r.sessionId);
-    return s?.month ?? '';
-  }).filter(Boolean))].sort().reverse();
+  // How many distinct groups this pro has been part of
+  const distinctGroups = new Set(proRegs.map(r => r.groupId)).size;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -80,6 +92,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
             <div className="flex divide-x divide-[#DDDBDA]">
               {[
                 { label: 'Coach',       value: coach.name },
+                { label: 'Groups',      value: distinctGroups },
                 { label: 'Sessions',    value: totalRegs },
                 { label: 'Attended',    value: totalAttended },
                 { label: 'Att. Rate',   value: attRate !== null ? `${attRate}%` : '—' },
@@ -114,7 +127,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
             </div>
           </div>
 
-          {/* Mastermind attendance — the SF related list */}
+          {/* Mastermind attendance — cross-group SF related list */}
           <div className="bg-white rounded border border-[#DDDBDA] shadow-sm overflow-hidden">
             <div className="px-4 py-2.5 border-b border-[#DDDBDA] flex items-center justify-between bg-[#FAFAF9]">
               <div className="flex items-center gap-2">
@@ -125,7 +138,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                 </h3>
               </div>
               <span className="text-[10px] text-[#706E6B] italic bg-[#F3F2F2] px-2 py-0.5 rounded">
-                Session_Registration__c · auto-updated via Zoom
+                Session_Registration__c · auto-synced via Zoom
               </span>
             </div>
 
@@ -138,8 +151,8 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[#DDDBDA]">
-                      {['Month', 'Session', 'Date & Time', 'Status', 'Attended'].map(h => (
-                        <th key={h} className="text-left px-4 py-2 text-[11px] font-bold text-[#706E6B] uppercase tracking-wide">
+                      {['Month', 'Group', 'Session', 'Date & Time', 'Status', 'Attended'].map(h => (
+                        <th key={h} className="text-left px-4 py-2 text-[11px] font-bold text-[#706E6B] uppercase tracking-wide whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -147,20 +160,24 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                   </thead>
                   <tbody className="divide-y divide-[#DDDBDA]">
                     {proRegs.map(reg => {
-                      const session = sessions.find(s => s.id === reg.sessionId);
+                      const session = allSessions.find(s => s.id === reg.sessionId);
                       if (!session) return null;
-                      const optLabel = getSessionLabel(session.sessionNumber);
+                      const regGroup = allGroups.find(g => g.id === reg.groupId);
+                      const optLabel = getSessionLabel(session);
                       return (
                         <tr key={reg.id} className="hover:bg-[#F3F2F2] transition-colors">
-                          <td className="px-4 py-2.5 text-[12px] text-[#080707]">
-                            {format(parseISO(session.month + '-02'), 'MMMM yyyy')}
+                          <td className="px-4 py-2.5 text-[12px] text-[#080707] whitespace-nowrap">
+                            {format(parseISO(session.month + '-02'), 'MMM yyyy')}
                           </td>
-                          <td className="px-4 py-2.5 text-[12px] text-[#706E6B]">{optLabel}</td>
-                          <td className="px-4 py-2.5">
+                          <td className="px-4 py-2.5 text-[12px] text-[#706E6B] max-w-[160px]">
+                            <span className="truncate block" title={regGroup?.name}>{regGroup?.name ?? '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-[12px] text-[#706E6B] whitespace-nowrap">{optLabel}</td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
                             <p className="text-[12px] text-[#080707]">{format(session.date, 'MMM d, yyyy')}</p>
                             <p className="text-[11px] text-[#706E6B]">{format(session.date, 'h:mm a')}</p>
                           </td>
-                          <td className="px-4 py-2.5">
+                          <td className="px-4 py-2.5 whitespace-nowrap">
                             {session.status === 'completed' ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] bg-[#E7F6EC] text-[#1C6E42]">Completed</span>
                             ) : session.status === 'invitations_sent' ? (
@@ -169,7 +186,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] bg-[#EEF4FF] text-[#014486]">Scheduled</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5">
+                          <td className="px-4 py-2.5 whitespace-nowrap">
                             {reg.attended === true  && (
                               <span className="inline-flex items-center gap-1 text-[12px] text-[#1C6E42] font-bold">
                                 <Check className="w-3.5 h-3.5" /> Yes
@@ -203,7 +220,7 @@ export function ProRecordModal({ pro, group, coach, sessions, registrations, onC
                     <code className="bg-white px-1 rounded border border-[#DDDBDA]">Attended__c</code>
                     {' · '}
                     <code className="bg-white px-1 rounded border border-[#DDDBDA]">Zoom_Join_Time__c</code>
-                    {' — populated automatically when Zoom meeting ends.'}
+                    {' — auto-populated when Zoom meeting ends. Coaches may manually override.'}
                   </p>
                 </div>
               </>

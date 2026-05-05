@@ -167,6 +167,13 @@ export default function App() {
     );
   };
 
+  // Manual attendance override — coach can correct what Zoom reported
+  const handleUpdateAttendance = (regId: string, attended: boolean | null) => {
+    setRegistrations(prev =>
+      prev.map(r => r.id === regId ? { ...r, attended } : r)
+    );
+  };
+
   const handleCreateSessions = (groupId: string, month: string, dates: [Date, Date, Date]) => {
     const newSessions: MastermindSession[] = dates.map((date, i) => ({
       id: `s${Date.now()}-${i}`,
@@ -346,6 +353,11 @@ export default function App() {
             members={pros.filter(p => activeGroup.memberIds.includes(p.id))}
             sessions={sessions.filter(s => s.groupId === activeGroup.id)}
             registrations={registrations.filter(r => r.groupId === activeGroup.id)}
+            allSessions={sessions}
+            allRegistrations={registrations}
+            allGroups={groups}
+            allCoaches={coaches}
+            allPros={pros}
             onBackToList={() => setActiveTabId('list')}
             onManageMembers={() => setShowManageMembers(true)}
             onCreateSessions={() => setShowCreateSessions(true)}
@@ -354,6 +366,7 @@ export default function App() {
             onCompleteSession={handleCompleteSession}
             onUpdateGroup={handleUpdateGroup}
             onSyncAttendance={handleSyncAttendance}
+            onUpdateAttendance={handleUpdateAttendance}
             onGenerateFixedSessions={(month) => handleGenerateFixedSessions(activeGroup.id, month)}
           />
         ) : null}

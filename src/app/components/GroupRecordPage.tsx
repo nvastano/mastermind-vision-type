@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, UserPlus, Plus, Mail, Users, Calendar,
-  Check, X, Pencil, ChevronDown
+  Check, X, Pencil, ChevronDown, Minus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration } from '../App';
@@ -14,6 +14,12 @@ type Props = {
   members: Pro[];
   sessions: MastermindSession[];
   registrations: SessionRegistration[];
+  // cross-group data for pro contact record
+  allSessions: MastermindSession[];
+  allRegistrations: SessionRegistration[];
+  allGroups: MastermindGroup[];
+  allCoaches: Coach[];
+  allPros: Pro[];
   onBackToList: () => void;
   onManageMembers: () => void;
   onCreateSessions: () => void;
@@ -22,6 +28,7 @@ type Props = {
   onCompleteSession: (sessionId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Pick<MastermindGroup, 'name' | 'status'>>) => void;
   onSyncAttendance: (sessionId: string) => void;
+  onUpdateAttendance: (regId: string, attended: boolean | null) => void;
   onGenerateFixedSessions: (month: string) => void;
 };
 
@@ -66,6 +73,8 @@ function SessionCard({
   isMakeup,
   onComplete,
   onSync,
+  onUpdateAttendance,
+  onOpenPro,
 }: {
   session: MastermindSession;
   label: string;
@@ -74,6 +83,8 @@ function SessionCard({
   isMakeup?: boolean;
   onComplete: (id: string) => void;
   onSync: (id: string) => void;
+  onUpdateAttendance: (regId: string, attended: boolean | null) => void;
+  onOpenPro: (pro: Pro) => void;
 }) {
   const [listOpen, setListOpen] = useState(false);
 
@@ -108,6 +119,7 @@ function SessionCard({
         >
           <span className="text-[13px] font-bold text-[#0176D3]">{total}</span>
           <span className="text-[11px] text-[#706E6B]">registered</span>
+          <ChevronDown className={`w-3 h-3 text-[#706E6B] transition-transform ${listOpen ? '' : '-rotate-90'}`} />
         </button>
         {isComplete && (
           <>
@@ -125,26 +137,76 @@ function SessionCard({
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-3 py-2 border-t border-[#DDDBDA] flex flex-wrap gap-1.5" />
-
       {/* Registrant list (expandable) */}
       {listOpen && (
-        <div className="border-t border-[#DDDBDA] max-h-44 overflow-y-auto">
+        <div className="border-t border-[#DDDBDA] max-h-52 overflow-y-auto">
           {sessionRegs.length === 0 ? (
             <p className="py-4 text-center text-[#706E6B] text-[12px]">No registrations yet</p>
           ) : (
-            sessionRegs.map(reg => {
-              const pro = members.find(m => m.id === reg.proId);
-              return (
-                <div key={reg.id} className="px-3 py-2 flex items-center justify-between border-b border-[#DDDBDA] last:border-b-0 hover:bg-[#F3F2F2]">
-                  <span className="text-[12px] text-[#080707]">{pro?.name ?? reg.proId}</span>
-                  {reg.attended === true  && <span className="text-[10px] bg-[#E7F6EC] text-[#1C6E42] px-1.5 py-0.5 rounded-full">Attended</span>}
-                  {reg.attended === false && <span className="text-[10px] bg-[#FCE3E3] text-[#C23934] px-1.5 py-0.5 rounded-full">No-Show</span>}
-                  {reg.attended === null  && <span className="text-[10px] bg-[#F3F2F2] text-[#706E6B] px-1.5 py-0.5 rounded-full">Pending</span>}
-                </div>
-              );
-            })
+            <>
+              {/* Column headers */}
+              <div className="px-3 py-1.5 flex items-center justify-between bg-[#FAFAF9] border-b border-[#DDDBDA]">
+                <span className="text-[10px] font-bold text-[#706E6B] uppercase tracking-wide">Pro</span>
+                <span className="text-[10px] font-bold text-[#706E6B] uppercase tracking-wide">
+                  Attended
+                  <span className="ml-1 text-[9px] font-normal normal-case text-[#C9C7C5]">· override</span>
+                </span>
+              </div>
+              {sessionRegs.map(reg => {
+                const pro = members.find(m => m.id === reg.proId);
+                return (
+                  <div key={reg.id} className="px-3 py-1.5 flex items-center justify-between border-b border-[#DDDBDA] last:border-b-0 hover:bg-[#F3F2F2]">
+                    {/* Clickable name → opens pro contact record */}
+                    <button
+                      onClick={() => pro && onOpenPro(pro)}
+                      className="text-[12px] text-[#0176D3] hover:underline text-left truncate max-w-[140px]"
+                    >
+                      {pro?.name ?? reg.proId}
+                    </button>
+
+                    {/* Manual override toggle — three states */}
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      {/* Attended */}
+                      <button
+                        onClick={() => onUpdateAttendance(reg.id, reg.attended === true ? null : true)}
+                        title="Mark Attended"
+                        className={`p-1 rounded transition-colors ${
+                          reg.attended === true
+                            ? 'bg-[#2E844A] text-white'
+                            : 'text-[#706E6B] hover:bg-[#E7F6EC] hover:text-[#1C6E42]'
+                        }`}
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      {/* No-show */}
+                      <button
+                        onClick={() => onUpdateAttendance(reg.id, reg.attended === false ? null : false)}
+                        title="Mark No-Show"
+                        className={`p-1 rounded transition-colors ${
+                          reg.attended === false
+                            ? 'bg-[#C23934] text-white'
+                            : 'text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934]'
+                        }`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      {/* Clear / pending */}
+                      <button
+                        onClick={() => onUpdateAttendance(reg.id, null)}
+                        title="Clear (reset to pending)"
+                        className={`p-1 rounded transition-colors ${
+                          reg.attended === null
+                            ? 'bg-[#706E6B] text-white'
+                            : 'text-[#C9C7C5] hover:bg-[#F3F2F2] hover:text-[#706E6B]'
+                        }`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       )}
@@ -161,6 +223,11 @@ export function GroupRecordPage({
   members,
   sessions,
   registrations,
+  allSessions,
+  allRegistrations,
+  allGroups,
+  allCoaches,
+  allPros,
   onBackToList,
   onManageMembers,
   onCreateSessions,
@@ -168,6 +235,7 @@ export function GroupRecordPage({
   onCompleteSession,
   onUpdateGroup,
   onSyncAttendance,
+  onUpdateAttendance,
   onGenerateFixedSessions,
 }: Props) {
   const [selectedPro, setSelectedPro]   = useState<Pro | null>(null);
@@ -421,6 +489,8 @@ export function GroupRecordPage({
                     isMakeup={isMakeup}
                     onComplete={onCompleteSession}
                     onSync={onSyncAttendance}
+                    onUpdateAttendance={onUpdateAttendance}
+                    onOpenPro={setSelectedPro}
                   />
                 );
               })}
@@ -513,8 +583,11 @@ export function GroupRecordPage({
           pro={selectedPro}
           group={group}
           coach={coach}
-          sessions={sessions}
-          registrations={registrations.filter(r => r.proId === selectedPro.id)}
+          allSessions={allSessions}
+          allRegistrations={allRegistrations}
+          allGroups={allGroups}
+          allCoaches={allCoaches}
+          allPros={allPros}
           onClose={() => setSelectedPro(null)}
         />
       )}
