@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, UserPlus, Plus, Mail, Users, Calendar,
-  Check, X, Pencil, Wifi, ChevronDown, Save, Search, ArrowUpDown
+  Check, X, Pencil, ChevronDown
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration, FixedSlot } from '../App';
+import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration } from '../App';
 import { ProRecordModal } from './ProRecordModal';
 import { BulkEmailModal } from './BulkEmailModal';
 
@@ -21,13 +21,9 @@ type Props = {
   onStartSession: (sessionId: string) => void;
   onCompleteSession: (sessionId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Pick<MastermindGroup, 'name' | 'status'>>) => void;
-  onUpdateFixedSlots: (groupId: string, slots: FixedSlot[]) => void;
   onSyncAttendance: (sessionId: string) => void;
   onGenerateFixedSessions: (month: string) => void;
-  onInviteToMakeup: (month: string, proIds: string[]) => void;
 };
-
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function formatTime(hour: number, minute: number): string {
   const period = hour >= 12 ? 'PM' : 'AM';
@@ -36,273 +32,11 @@ function formatTime(hour: number, minute: number): string {
   return `${h}:${m} ${period}`;
 }
 
-// ── Fixed Groups panel ────────────────────────────────────────────────────────
-
-const DAY_FILTERS = [
-  { label: 'All', value: 0 },
-  { label: 'Mon', value: 1 },
-  { label: 'Tue', value: 2 },
-  { label: 'Wed', value: 3 },
-  { label: 'Thu', value: 4 },
-  { label: 'Fri', value: 5 },
-];
-
-const ORDINALS = ['1st', '2nd', '3rd', '4th'];
-
-function slotDisplayName(slot: FixedSlot): string {
-  const week = ORDINALS[(slot.weekOfMonth ?? 1) - 1] ?? `${slot.weekOfMonth}th`;
-  return `${week} ${DAYS[slot.dayOfWeek].slice(0, 3)} · ${formatTime(slot.hour, slot.minute)}`;
-}
-
-function FixedGroupsPanel({
-  group,
-  members,
-  onUpdateSlots,
-}: {
-  group: MastermindGroup;
-  members: Pro[];
-  onUpdateSlots: (slots: FixedSlot[]) => void;
-}) {
-  const slots = group.fixedSlots ?? [];
-  const [expandedIds, setExpandedIds]   = useState<Set<string>>(new Set());
-  const [editingIdx, setEditingIdx]     = useState<number | null>(null);
-  const [draft, setDraft]               = useState<{ weekOfMonth: number; dayOfWeek: number; hour: number; minute: number } | null>(null);
-  const [search, setSearch]             = useState('');
-  const [dayFilter, setDayFilter]       = useState(0);
-  const [sortAsc, setSortAsc]           = useState(true);
-  const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
-
-  const toggleExpand = (id: string) =>
-    setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const saveSlot = (idx: number) => {
-    if (!draft) return;
-    const updated = slots.map((s, i) => {
-      if (i !== idx) return s;
-      const week  = ORDINALS[(draft.weekOfMonth - 1)] ?? `${draft.weekOfMonth}th`;
-      const label = `${week} ${DAYS[draft.dayOfWeek].slice(0,3)} · ${formatTime(draft.hour, draft.minute)}`;
-      return { ...s, ...draft, label };
-    });
-    onUpdateSlots(updated);
-    setEditingIdx(null); setDraft(null);
-  };
-
-  const removeSlot = (idx: number) => {
-    if (slots.length <= 1) return;
-    onUpdateSlots(slots.filter((_, i) => i !== idx));
-  };
-
-  const addSlot = () => {
-    const newSlot: FixedSlot = {
-      id: `fs-new-${Date.now()}`,
-      label: '1st Mon · 9:00 AM',
-      weekOfMonth: 1, dayOfWeek: 1, hour: 9, minute: 0,
-      memberIds: [],
-    };
-    onUpdateSlots([...slots, newSlot]);
-    setEditingIdx(slots.length);
-    setDraft({ weekOfMonth: 1, dayOfWeek: 1, hour: 9, minute: 0 });
-  };
-
-  const visibleSlots = slots
-    .filter(s => {
-      const matchDay  = dayFilter === 0 || s.dayOfWeek === dayFilter;
-      const name      = slotDisplayName(s).toLowerCase();
-      const matchText = search === '' || name.includes(search.toLowerCase());
-      return matchDay && matchText;
-    })
-    .slice()
-    .sort((a, b) => {
-      const diff = (a.dayOfWeek * 1440 + a.hour * 60 + a.minute) -
-                   (b.dayOfWeek * 1440 + b.hour * 60 + b.minute);
-      return sortAsc ? diff : -diff;
-    });
-
-  return (
-    <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
-
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[#DDDBDA] flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#0176D3]" />
-          <h2 className="text-[13px] font-bold text-[#080707]">Fixed Groups</h2>
-          <span className="text-[11px] text-[#706E6B]">
-            {visibleSlots.length === slots.length
-              ? `${slots.length} group${slots.length !== 1 ? 's' : ''}`
-              : `${visibleSlots.length} of ${slots.length}`}
-          </span>
-        </div>
-        <button onClick={addSlot}
-          className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5 flex-shrink-0">
-          <Plus className="w-3.5 h-3.5" /> Add Group
-        </button>
-      </div>
-
-      {slots.length === 0 ? (
-        <div className="py-10 text-center">
-          <Users className="w-8 h-8 text-[#C9C7C5] mx-auto mb-2" />
-          <p className="text-[#706E6B] text-[13px] mb-3">No groups defined yet.</p>
-          <button onClick={addSlot}
-            className="px-4 py-2 bg-[#0176D3] text-white text-[13px] rounded hover:bg-[#014486] transition-colors inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add First Group
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Filter bar */}
-          <div className="px-4 py-2 border-b border-[#DDDBDA] flex items-center gap-2 flex-wrap bg-[#FAFAF9]">
-            <div className="relative flex-1 min-w-[160px] max-w-xs">
-              <Search className="w-3 h-3 text-[#706E6B] absolute left-2 top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search groups…"
-                className="w-full pl-6 pr-2 py-1 border border-[#DDDBDA] rounded text-[11px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#706E6B] hover:text-[#080707]">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-            <div className="flex items-center rounded border border-[#DDDBDA] overflow-hidden">
-              {DAY_FILTERS.map(f => (
-                <button key={f.value} onClick={() => setDayFilter(f.value)}
-                  className={`px-2.5 py-1 text-[11px] transition-colors ${
-                    dayFilter === f.value ? 'bg-[#032D60] text-white' : 'bg-white text-[#706E6B] hover:bg-[#F3F2F2]'
-                  }`}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setSortAsc(v => !v)}
-              className="flex items-center gap-1 px-2.5 py-1 border border-[#DDDBDA] rounded bg-white text-[11px] text-[#706E6B] hover:bg-[#F3F2F2] transition-colors">
-              <ArrowUpDown className="w-3 h-3" />
-              {sortAsc ? 'Day ↑' : 'Day ↓'}
-            </button>
-          </div>
-
-          {visibleSlots.length === 0 ? (
-            <div className="py-8 text-center text-[#706E6B] text-[13px]">No groups match your filter.</div>
-          ) : (
-            <div className="divide-y divide-[#DDDBDA]">
-              {visibleSlots.map(slot => {
-                const origIdx     = slots.indexOf(slot);
-                const isEditing   = editingIdx === origIdx;
-                const isExpanded  = expandedIds.has(slot.id);
-                const slotMembers = slot.memberIds.map(id => members.find(m => m.id === id)).filter(Boolean) as Pro[];
-                const mSearch     = memberSearch[slot.id] ?? '';
-                const filteredMembers = mSearch
-                  ? slotMembers.filter(p =>
-                      p.name.toLowerCase().includes(mSearch.toLowerCase()) ||
-                      p.email.toLowerCase().includes(mSearch.toLowerCase()))
-                  : slotMembers;
-
-                return (
-                  <div key={slot.id}>
-                    <div className={`px-4 py-2.5 ${isExpanded ? 'bg-[#EEF4FF]' : 'hover:bg-[#FAFAF9]'} transition-colors`}>
-                      {isEditing && draft ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <select value={draft.weekOfMonth}
-                            onChange={e => setDraft(d => d ? { ...d, weekOfMonth: Number(e.target.value) } : d)}
-                            className="px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
-                            {[1,2,3,4].map(w => <option key={w} value={w}>{ORDINALS[w-1]}</option>)}
-                          </select>
-                          <select value={draft.dayOfWeek}
-                            onChange={e => setDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
-                            className="flex-1 min-w-[100px] px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
-                            {[1,2,3,4,5].map(d => <option key={d} value={d}>{DAYS[d]}</option>)}
-                          </select>
-                          <input type="time"
-                            value={`${String(draft.hour).padStart(2,'0')}:${String(draft.minute).padStart(2,'0')}`}
-                            onChange={e => { const [h,m] = e.target.value.split(':').map(Number); setDraft(d => d ? { ...d, hour: h, minute: m } : d); }}
-                            className="w-28 px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]"
-                          />
-                          <button onClick={() => saveSlot(origIdx)}
-                            className="px-2.5 py-1 bg-[#0176D3] text-white text-[11px] rounded hover:bg-[#014486] transition-colors flex items-center gap-1">
-                            <Save className="w-3 h-3" /> Save
-                          </button>
-                          <button onClick={() => { setEditingIdx(null); setDraft(null); }}
-                            className="p-1 rounded text-[#706E6B] hover:bg-[#F3F2F2]">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => toggleExpand(slot.id)}
-                            className="p-0.5 rounded hover:bg-[#DDDBDA] text-[#706E6B] transition-colors flex-shrink-0">
-                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                          </button>
-                          {/* Week + day badge */}
-                          <span className="text-[10px] font-bold text-[#0176D3] bg-[#EEF4FF] rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap">
-                            {ORDINALS[(slot.weekOfMonth ?? 1) - 1]} {DAYS[slot.dayOfWeek].slice(0,3).toUpperCase()}
-                          </span>
-                          <span className="text-[13px] font-semibold text-[#080707] flex-1 truncate">
-                            {formatTime(slot.hour, slot.minute)}
-                          </span>
-                          <span className="text-[11px] text-[#706E6B] flex-shrink-0 w-20 text-right">
-                            {slotMembers.length} member{slotMembers.length !== 1 ? 's' : ''}
-                          </span>
-                          <button onClick={() => { setEditingIdx(origIdx); setDraft({ weekOfMonth: slot.weekOfMonth ?? 1, dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
-                            className="p-1 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors flex-shrink-0" title="Edit">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => removeSlot(origIdx)} disabled={slots.length <= 1}
-                            className="p-1 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors flex-shrink-0" title="Remove">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {isExpanded && !isEditing && (
-                      <div className="border-t border-[#DDDBDA] bg-[#FAFAF9]">
-                        {slotMembers.length > 5 && (
-                          <div className="px-4 pt-2 pb-1">
-                            <div className="relative max-w-xs">
-                              <Search className="w-3 h-3 text-[#706E6B] absolute left-2 top-1/2 -translate-y-1/2" />
-                              <input
-                                value={mSearch}
-                                onChange={e => setMemberSearch(prev => ({ ...prev, [slot.id]: e.target.value }))}
-                                placeholder={`Search ${slotMembers.length} members…`}
-                                className="w-full pl-6 pr-2 py-1 border border-[#DDDBDA] rounded text-[11px] bg-white focus:outline-none focus:border-[#0176D3]"
-                              />
-                            </div>
-                          </div>
-                        )}
-                        <div className="px-4 py-1 divide-y divide-[#F3F2F2] max-h-64 overflow-y-auto">
-                          {filteredMembers.length === 0 ? (
-                            <p className="text-[11px] text-[#706E6B] italic py-2">
-                              {slotMembers.length === 0 ? 'No members assigned.' : 'No members match search.'}
-                            </p>
-                          ) : filteredMembers.map(pro => (
-                            <div key={pro.id} className="flex items-center gap-3 py-1.5">
-                              <span className="text-[12px] text-[#080707]">{pro.name}</span>
-                              <span className="text-[11px] text-[#706E6B]">{pro.email}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 // ── Session label helper ──────────────────────────────────────────────────────
 
-function getSessionLabel(session: MastermindSession, group: MastermindGroup): string {
+function getSessionLabel(session: MastermindSession, _group: MastermindGroup): string {
   if (session.sessionType === 'makeup') return 'Makeup';
-  if (session.sessionType === 'fixed_slot' && group.fixedSlots) {
-    const slot = group.fixedSlots.find(s => s.id === session.slotId);
-    if (slot) return slotDisplayName(slot);
-  }
+  if (session.sessionType === 'fixed_slot') return 'Monthly Session';
   const labels = ['Option A', 'Option B', 'Option C'];
   return labels[session.sessionNumber - 1] ?? `Session ${session.sessionNumber}`;
 }
@@ -330,40 +64,23 @@ function SessionCard({
   sessionRegs,
   members,
   isMakeup,
-  noShowPros,
   onComplete,
   onSync,
-  onInviteNoShows,
 }: {
   session: MastermindSession;
   label: string;
   sessionRegs: SessionRegistration[];
   members: Pro[];
   isMakeup?: boolean;
-  noShowPros?: Pro[];
   onComplete: (id: string) => void;
   onSync: (id: string) => void;
-  onInviteNoShows?: (proIds: string[]) => void;
 }) {
   const [listOpen, setListOpen] = useState(false);
-  const [makeupOpen, setMakeupOpen] = useState(false);
-  const [selectedNoShows, setSelectedNoShows] = useState<string[]>([]);
 
   const attended = sessionRegs.filter(r => r.attended === true).length;
   const noShow   = sessionRegs.filter(r => r.attended === false).length;
   const total    = sessionRegs.length;
   const isComplete = session.status === 'completed';
-
-  const toggleNoShow = (id: string) =>
-    setSelectedNoShows(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-
-  const handleSendMakeup = () => {
-    if (onInviteNoShows && selectedNoShows.length > 0) {
-      onInviteNoShows(selectedNoShows);
-      setSelectedNoShows([]);
-      setMakeupOpen(false);
-    }
-  };
 
   return (
     <div className={`border border-[#DDDBDA] rounded overflow-hidden flex flex-col ${isMakeup ? 'border-dashed' : ''}`}>
@@ -409,16 +126,7 @@ function SessionCard({
       </div>
 
       {/* Actions */}
-      <div className="px-3 py-2 border-t border-[#DDDBDA] flex flex-wrap gap-1.5">
-        {isMakeup && noShowPros && noShowPros.length > 0 && !isComplete && (
-          <button
-            onClick={() => setMakeupOpen(v => !v)}
-            className="px-2.5 py-1 bg-[#FE9339] text-white text-[11px] rounded border border-[#FE9339] hover:bg-[#DD7A01] transition-colors flex items-center gap-1"
-          >
-            <Mail className="w-3 h-3" /> Invite No-Shows ({noShowPros.length})
-          </button>
-        )}
-      </div>
+      <div className="px-3 py-2 border-t border-[#DDDBDA] flex flex-wrap gap-1.5" />
 
       {/* Registrant list (expandable) */}
       {listOpen && (
@@ -441,42 +149,6 @@ function SessionCard({
         </div>
       )}
 
-      {/* Makeup invite panel */}
-      {makeupOpen && noShowPros && (
-        <div className="border-t border-[#DDDBDA] bg-[#FFFBF5]">
-          <div className="px-3 py-2 border-b border-[#DDDBDA]">
-            <p className="text-[11px] font-bold text-[#7A4F00]">Select no-shows to invite</p>
-          </div>
-          <div className="max-h-36 overflow-y-auto divide-y divide-[#DDDBDA]">
-            {noShowPros.map(pro => (
-              <label key={pro.id} className="flex items-center gap-2 px-3 py-2 hover:bg-[#FEF3E2] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedNoShows.includes(pro.id)}
-                  onChange={() => toggleNoShow(pro.id)}
-                  className="w-3.5 h-3.5 accent-[#FE9339]"
-                />
-                <span className="text-[12px] text-[#080707]">{pro.name}</span>
-              </label>
-            ))}
-          </div>
-          <div className="px-3 py-2 flex gap-2 border-t border-[#DDDBDA]">
-            <button
-              onClick={handleSendMakeup}
-              disabled={selectedNoShows.length === 0}
-              className="px-3 py-1.5 bg-[#FE9339] text-white text-[11px] rounded border border-[#FE9339] hover:bg-[#DD7A01] disabled:opacity-40 transition-colors"
-            >
-              Send Invite ({selectedNoShows.length})
-            </button>
-            <button
-              onClick={() => { setMakeupOpen(false); setSelectedNoShows([]); }}
-              className="px-3 py-1.5 bg-white text-[#706E6B] text-[11px] rounded border border-[#DDDBDA] hover:bg-[#F3F2F2] transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -497,7 +169,6 @@ export function GroupRecordPage({
   onUpdateGroup,
   onSyncAttendance,
   onGenerateFixedSessions,
-  onInviteToMakeup,
 }: Props) {
   const [selectedPro, setSelectedPro]   = useState<Pro | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -534,23 +205,6 @@ export function GroupRecordPage({
   const hasSessionsThisMonth = currentSessions.length > 0;
   const canSendInvites = currentSessions.some(s => s.status === 'scheduled');
   const invitesSent    = currentSessions.some(s => s.status === 'invitations_sent' || s.status === 'completed');
-
-  // No-show pros for makeup session
-  const getNoShowsForMonth = (month: string): Pro[] => {
-    const fixedSessions = sessions.filter(s => s.month === month && s.sessionType === 'fixed_slot');
-    const noShowRegs = registrations.filter(
-      r => fixedSessions.some(s => s.id === r.sessionId) && r.attended === false
-    );
-    const makeupSession = sessions.find(s => s.month === month && s.sessionType === 'makeup');
-    const alreadyInvited = makeupSession
-      ? new Set(registrations.filter(r => r.sessionId === makeupSession.id).map(r => r.proId))
-      : new Set<string>();
-    return noShowRegs
-      .map(r => members.find(m => m.id === r.proId))
-      .filter((p): p is Pro => !!p && !alreadyInvited.has(p.id));
-  };
-
-  const noShowPros = group.type === 'fixed' ? getNoShowsForMonth(selectedMonth) : [];
 
   return (
     <div className="min-h-full bg-[#F3F2F2]">
@@ -634,32 +288,32 @@ export function GroupRecordPage({
         {/* Key Fields strip */}
         <div className="border-t border-[#DDDBDA]">
           <div className="flex divide-x divide-[#DDDBDA]">
-            {[
-              { label: 'Coach',   value: coach.name },
-              { label: 'Status',  value: group.status === 'active' ? 'Active' : 'Inactive' },
-              { label: 'Members', value: members.length },
-              { label: 'Sessions', value: sessions.length },
-            ].map(f => (
-              <div key={f.label} className="px-4 py-2.5 flex-1">
-                <p className="text-[11px] text-[#706E6B]">{f.label}</p>
-                <p className="text-[13px] text-[#080707]">{f.value}</p>
-              </div>
-            ))}
+            {(() => {
+              const scheduleLabel = group.type === 'fixed' && group.schedule
+                ? `${['','1st','2nd','3rd','4th'][group.schedule.weekOfMonth]} ${['','Mon','Tue','Wed','Thu','Fri'][group.schedule.dayOfWeek]} · ${formatTime(group.schedule.hour, group.schedule.minute)}`
+                : null;
+
+              const fields = [
+                { label: 'Coach',    value: coach.name },
+                ...(scheduleLabel ? [{ label: 'Schedule', value: scheduleLabel }] : []),
+                { label: 'Status',   value: group.status === 'active' ? 'Active' : 'Inactive' },
+                { label: 'Members',  value: members.length },
+                { label: 'Sessions', value: sessions.length },
+              ];
+
+              return fields.map(f => (
+                <div key={f.label} className="px-4 py-2.5 flex-1">
+                  <p className="text-[11px] text-[#706E6B]">{f.label}</p>
+                  <p className="text-[13px] text-[#080707]">{f.value}</p>
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </div>
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <div className="p-4 space-y-4">
-
-        {/* Fixed Groups section — only for fixed type */}
-        {group.type === 'fixed' && (
-          <FixedGroupsPanel
-            group={group}
-            members={members}
-            onUpdateSlots={(slots) => onUpdateFixedSlots(group.id, slots)}
-          />
-        )}
 
         {/* Sessions section */}
         <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
@@ -765,10 +419,8 @@ export function GroupRecordPage({
                     sessionRegs={sessionRegs}
                     members={members}
                     isMakeup={isMakeup}
-                    noShowPros={isMakeup ? noShowPros : undefined}
                     onComplete={onCompleteSession}
                     onSync={onSyncAttendance}
-                    onInviteNoShows={isMakeup ? (ids) => onInviteToMakeup(selectedMonth, ids) : undefined}
                   />
                 );
               })}
@@ -819,9 +471,6 @@ export function GroupRecordPage({
                     const memberReg = registrations.find(
                       r => r.proId === member.id && latestIds.includes(r.sessionId)
                     );
-                    // Cohort label for fixed groups
-                    const cohortSlot = group.fixedSlots?.find(sl => sl.memberIds.includes(member.id));
-                    const cohortLabel = cohortSlot ? slotDisplayName(cohortSlot) : undefined;
 
                     return (
                       <div key={member.id} className="px-4 py-3 flex items-center gap-3 hover:bg-[#F3F2F2] transition-colors">
@@ -838,11 +487,6 @@ export function GroupRecordPage({
                             >
                               {member.name}
                             </button>
-                            {cohortLabel && (
-                              <span className="text-[10px] bg-[#F3F2F2] text-[#706E6B] px-1.5 py-px rounded shrink-0">
-                                {cohortLabel}
-                              </span>
-                            )}
                           </div>
                           <p className="text-[11px] text-[#706E6B] truncate">{member.email}</p>
                         </div>

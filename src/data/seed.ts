@@ -1,4 +1,4 @@
-import type { MastermindGroup, MastermindSession, SessionRegistration, FixedSlot } from '../app/App';
+import type { MastermindGroup, MastermindSession, SessionRegistration, GroupSchedule } from '../app/App';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,6 @@ function formatTime(hour: number, minute: number): string {
   return `${h}:${m} ${period}`;
 }
 
-/** Returns the day-of-month for the nth occurrence of dayOfWeek in the given month */
 function getNthWeekday(year: number, month: number, dayOfWeek: number, n: number): number {
   const d = new Date(year, month - 1, 1);
   let count = 0;
@@ -26,119 +25,69 @@ function getNthWeekday(year: number, month: number, dayOfWeek: number, n: number
     }
     d.setDate(d.getDate() + 1);
   }
-  return 14; // fallback — should never hit
+  return 14;
 }
 
-/** Returns the day-of-month for the last occurrence of dayOfWeek in the given month */
-function getLastWeekday(year: number, month: number, dayOfWeek: number): number {
-  const d = new Date(year, month, 0); // last day of month
-  while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() - 1);
-  return d.getDate();
-}
+const ORDINALS = ['1st', '2nd', '3rd', '4th'];
+const DAY_ABBRs = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const ORDINALS  = ['1st', '2nd', '3rd', '4th'];
-const DAY_ABBR  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// ── Fixed group factory ───────────────────────────────────────────────────────
 
-/**
- * Build 20 fixed slots — 4 weeks × Mon–Fri — all at the same time.
- * Each slot gets `perGroup` consecutive pros starting at `proStart`.
- */
-function makeFixedSlots(
-  prefix: string,
-  hour: number,
-  minute: number,
-  proStart: number,
-  perGroup: number,
-): FixedSlot[] {
-  const slots: FixedSlot[] = [];
-  let pro = proStart;
+type CoachConfig = {
+  coachId: string;
+  lastName: string;
+  hour: number;
+  minute: number;
+  proStart: number;
+  idStart: number;
+};
+
+function buildFixedGroups(cfg: CoachConfig): MastermindGroup[] {
+  const groups: MastermindGroup[] = [];
+  let pro = cfg.proStart;
+  let n   = cfg.idStart;
+
   for (let week = 1; week <= 4; week++) {
     for (let dow = 1; dow <= 5; dow++) {
-      const label = `${ORDINALS[week - 1]} ${DAY_ABBR[dow]} · ${formatTime(hour, minute)}`;
-      slots.push({
-        id:          `fs-${prefix}-${week}-${dow}`,
-        label,
+      const schedule: GroupSchedule = {
         weekOfMonth: week,
         dayOfWeek:   dow,
-        hour,
-        minute,
-        memberIds:   proRange(pro, pro + perGroup - 1),
+        hour:        cfg.hour,
+        minute:      cfg.minute,
+      };
+      groups.push({
+        id:          `sg-f${n++}`,
+        name:        `${cfg.lastName} · ${ORDINALS[week - 1]} ${DAY_ABBRs[dow]} ${formatTime(cfg.hour, cfg.minute)}`,
+        coachId:     cfg.coachId,
+        memberIds:   proRange(pro, pro + 14),
+        createdDate: new Date('2026-01-06'),
+        status:      'active',
+        type:        'fixed',
+        schedule,
       });
-      pro += perGroup;
+      pro += 15;
     }
   }
-  return slots;
+  return groups;
 }
 
-// ── Fixed slots ───────────────────────────────────────────────────────────────
-// 20 groups × 15 members = 300 pros per coach
+// ── Fixed groups (20 per coach, 300 pros each) ───────────────────────────────
 
-const DAVID_SLOTS = makeFixedSlots('d', 10,  0,   1, 15); // pro-0001 → pro-0300
-const TORI_SLOTS  = makeFixedSlots('t',  9,  0, 301, 15); // pro-0301 → pro-0600
-const COLIN_SLOTS = makeFixedSlots('c', 11,  0, 601, 15); // pro-0601 → pro-0900
+const DAVID_GROUPS  = buildFixedGroups({ coachId: 'c1', lastName: 'LaBahn',  hour: 10, minute: 0, proStart: 1,   idStart: 1  });
+const TORI_GROUPS   = buildFixedGroups({ coachId: 'c2', lastName: 'Wheeler', hour:  9, minute: 0, proStart: 301, idStart: 21 });
+const COLIN_GROUPS  = buildFixedGroups({ coachId: 'c3', lastName: 'Bellios', hour: 11, minute: 0, proStart: 601, idStart: 41 });
 
-// ── Groups ────────────────────────────────────────────────────────────────────
-export const SEED_GROUPS: MastermindGroup[] = [
-  // Fixed
-  {
-    id: 'sg-1',
-    name: 'David LaBahn Mastermind',
-    coachId: 'c1',
-    memberIds: proRange(1, 300),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'fixed',
-    fixedSlots: DAVID_SLOTS,
-  },
-  {
-    id: 'sg-2',
-    name: 'Tori Wheeler Mastermind',
-    coachId: 'c2',
-    memberIds: proRange(301, 600),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'fixed',
-    fixedSlots: TORI_SLOTS,
-  },
-  {
-    id: 'sg-3',
-    name: 'Colin Bellios Mastermind',
-    coachId: 'c3',
-    memberIds: proRange(601, 900),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'fixed',
-    fixedSlots: COLIN_SLOTS,
-  },
-  // Flexible
-  {
-    id: 'sg-4',
-    name: 'Katrien Shaw Mastermind',
-    coachId: 'c4',
-    memberIds: proRange(901, 960),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'flexible',
-  },
-  {
-    id: 'sg-5',
-    name: 'Angelica Dotson Mastermind',
-    coachId: 'c5',
-    memberIds: proRange(961, 1020),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'flexible',
-  },
-  {
-    id: 'sg-6',
-    name: 'Lily Lee Mastermind',
-    coachId: 'c6',
-    memberIds: proRange(1021, 1080),
-    createdDate: new Date('2026-01-06'),
-    status: 'active',
-    type: 'flexible',
-  },
+const ALL_FIXED_GROUPS = [...DAVID_GROUPS, ...TORI_GROUPS, ...COLIN_GROUPS];
+
+// ── Flexible groups (60 pros each) ───────────────────────────────────────────
+
+const FLEX_GROUPS_DATA: MastermindGroup[] = [
+  { id: 'sg-4', name: 'Katrien Shaw Mastermind',   coachId: 'c4', memberIds: proRange(901,  960),  createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
+  { id: 'sg-5', name: 'Angelica Dotson Mastermind', coachId: 'c5', memberIds: proRange(961,  1020), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
+  { id: 'sg-6', name: 'Lily Lee Mastermind',        coachId: 'c6', memberIds: proRange(1021, 1080), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
 ];
+
+export const SEED_GROUPS: MastermindGroup[] = [...ALL_FIXED_GROUPS, ...FLEX_GROUPS_DATA];
 
 // ── Month configs ─────────────────────────────────────────────────────────────
 
@@ -150,52 +99,31 @@ const FIXED_MONTHS: MonthConfig[] = [
   { key: '2026-05', status: 'invitations_sent' },
 ];
 
-// ── Fixed session builder ─────────────────────────────────────────────────────
+// ── Fixed session builder (1 session per group per month) ─────────────────────
 
-/**
- * One session per slot per month (date derived from slot.weekOfMonth + dayOfWeek),
- * plus one shared makeup session at the end of the month (last Friday, noon).
- */
 function buildFixedSessions(
-  groupId: string,
-  slots: FixedSlot[],
+  groups: MastermindGroup[],
   months: MonthConfig[],
   idPrefix: string,
   zoomBase: number,
 ): MastermindSession[] {
-  return months.flatMap((month, mi) => {
-    const [year, mo] = month.key.split('-').map(Number);
-
-    const slotSessions: MastermindSession[] = slots.map((slot, si) => {
-      const day = getNthWeekday(year, mo, slot.dayOfWeek, slot.weekOfMonth);
+  return groups.flatMap((group, gi) =>
+    months.map((month, mi) => {
+      const { weekOfMonth, dayOfWeek, hour, minute } = group.schedule!;
+      const [year, mo] = month.key.split('-').map(Number);
+      const day = getNthWeekday(year, mo, dayOfWeek, weekOfMonth);
       return {
-        id:            `ss-${idPrefix}-m${mi + 1}-s${si + 1}`,
-        groupId,
+        id:            `ss-${idPrefix}-g${gi + 1}-m${mi + 1}`,
+        groupId:       group.id,
         month:         month.key,
-        sessionNumber: si + 1,
-        date:          new Date(year, mo - 1, day, slot.hour, slot.minute),
+        sessionNumber: 1,
+        date:          new Date(year, mo - 1, day, hour, minute),
         status:        month.status,
-        zoomLink:      `https://zoom.us/j/${zoomBase + mi * 10000 + si}`,
+        zoomLink:      `https://zoom.us/j/${zoomBase + gi * 100 + mi}`,
         sessionType:   'fixed_slot' as const,
-        slotId:        slot.id,
       };
-    });
-
-    // One shared makeup per month — last Friday at noon
-    const makeupDay = getLastWeekday(year, mo, 5);
-    const makeup: MastermindSession = {
-      id:            `ss-${idPrefix}-m${mi + 1}-makeup`,
-      groupId,
-      month:         month.key,
-      sessionNumber: slots.length + 1,
-      date:          new Date(year, mo - 1, makeupDay, 12, 0),
-      status:        month.status,
-      zoomLink:      `https://zoom.us/j/${zoomBase + mi * 10000 + 9999}`,
-      sessionType:   'makeup' as const,
-    };
-
-    return [...slotSessions, makeup];
-  });
+    })
+  );
 }
 
 // ── Flexible session builder ──────────────────────────────────────────────────
@@ -208,14 +136,14 @@ const FLEX_MONTHS: FlexMonth[] = [
   { key: '2026-05', days: [ 7, 14, 21], status: 'invitations_sent' },
 ];
 
-const FLEX_GROUPS = [
+const FLEX_SCHEDULE = [
   { groupId: 'sg-4', idPrefix: 'k4', zoomBase: 860_000_000, times: [[10, 30], [14, 30], [17, 30]] as [number, number][] },
   { groupId: 'sg-5', idPrefix: 'a5', zoomBase: 870_000_000, times: [[ 9, 30], [13, 30], [18,  0]] as [number, number][] },
   { groupId: 'sg-6', idPrefix: 'l6', zoomBase: 880_000_000, times: [[ 9,  0], [13,  0], [17,  0]] as [number, number][] },
 ];
 
 function buildFlexSessions(): MastermindSession[] {
-  return FLEX_GROUPS.flatMap(({ groupId, idPrefix, zoomBase, times }) =>
+  return FLEX_SCHEDULE.flatMap(({ groupId, idPrefix, zoomBase, times }) =>
     FLEX_MONTHS.flatMap((month, mi) =>
       ([0, 1, 2] as const).map(opt => {
         const [hour, min] = times[opt];
@@ -235,25 +163,19 @@ function buildFlexSessions(): MastermindSession[] {
   );
 }
 
-// ── Build all sessions ────────────────────────────────────────────────────────
+// ── All sessions ──────────────────────────────────────────────────────────────
 
 export const SEED_SESSIONS: MastermindSession[] = [
-  ...buildFixedSessions('sg-1', DAVID_SLOTS, FIXED_MONTHS, 'd', 810_000_000),
-  ...buildFixedSessions('sg-2', TORI_SLOTS,  FIXED_MONTHS, 't', 820_000_000),
-  ...buildFixedSessions('sg-3', COLIN_SLOTS, FIXED_MONTHS, 'c', 830_000_000),
+  ...buildFixedSessions(DAVID_GROUPS,  FIXED_MONTHS, 'd', 810_000_000),
+  ...buildFixedSessions(TORI_GROUPS,   FIXED_MONTHS, 't', 820_000_000),
+  ...buildFixedSessions(COLIN_GROUPS,  FIXED_MONTHS, 'c', 830_000_000),
   ...buildFlexSessions(),
 ];
 
 // ── Fixed registration builder ────────────────────────────────────────────────
 
-/**
- * For each slot in each completed month:
- *   - 13 of 15 members marked attended, 2 marked no-show
- *   - No-shows get a makeup registration (half of them attended the makeup)
- */
 function buildFixedRegs(
-  groupId: string,
-  slots: FixedSlot[],
+  groups: MastermindGroup[],
   months: MonthConfig[],
   idPrefix: string,
   startIdx: number,
@@ -261,50 +183,28 @@ function buildFixedRegs(
   const regs: SessionRegistration[] = [];
   let idx = startIdx;
 
-  months.forEach((month, mi) => {
-    const isCompleted = month.status === 'completed';
-
-    slots.forEach((slot, si) => {
-      const sessionId = `ss-${idPrefix}-m${mi + 1}-s${si + 1}`;
+  groups.forEach((group, gi) => {
+    months.forEach((month, mi) => {
+      const sessionId = `ss-${idPrefix}-g${gi + 1}-m${mi + 1}`;
       const session   = SEED_SESSIONS.find(s => s.id === sessionId);
       if (!session) return;
 
-      const noShows: string[] = [];
+      const isCompleted = month.status === 'completed';
 
-      slot.memberIds.forEach((proId, k) => {
-        // 0-12 attended (13), 13-14 no-show (2), rest pending
+      group.memberIds.forEach((proId, k) => {
         const attended: boolean | null = isCompleted
           ? (k < 13 ? true : k < 15 ? false : null)
           : null;
-        if (isCompleted && k >= 13 && k < 15) noShows.push(proId);
 
         regs.push({
           id:             `sr-${++idx}`,
           sessionId,
-          groupId,
+          groupId:        group.id,
           proId,
           registeredDate: new Date(session.date.getTime() - (10 - (k % 10)) * 86400000),
           attended,
         });
       });
-
-      // Makeup registrations for no-shows
-      if (isCompleted && noShows.length > 0) {
-        const makeupId      = `ss-${idPrefix}-m${mi + 1}-makeup`;
-        const makeupSession = SEED_SESSIONS.find(s => s.id === makeupId);
-        if (makeupSession) {
-          noShows.forEach((proId, k) => {
-            regs.push({
-              id:             `sr-${++idx}`,
-              sessionId:      makeupId,
-              groupId,
-              proId,
-              registeredDate: new Date(makeupSession.date.getTime() - 5 * 86400000),
-              attended:       k % 2 === 0 ? true : false, // half attended makeup
-            });
-          });
-        }
-      }
     });
   });
 
@@ -320,18 +220,14 @@ function buildFlexRegs(
   const regs: SessionRegistration[] = [];
   let idx = startIdx;
 
-  const { groupId, idPrefix } = FLEX_GROUPS[groupIdx];
+  const { groupId, idPrefix } = FLEX_SCHEDULE[groupIdx];
   const group     = SEED_GROUPS.find(g => g.id === groupId)!;
   const memberIds = group.memberIds;
 
   FLEX_MONTHS.forEach((month, mi) => {
     const isCompleted = month.status === 'completed';
     const countToReg  = isCompleted ? 45 : 30;
-
-    const sessionIds = ([0, 1, 2] as const).map(
-      opt => `ss-${idPrefix}-${mi + 1}-${opt + 1}`
-    );
-
+    const sessionIds  = ([0, 1, 2] as const).map(opt => `ss-${idPrefix}-${mi + 1}-${opt + 1}`);
     const offset      = groupIdx * 17 + mi * 7;
     const registering = Array.from({ length: countToReg }, (_, k) =>
       memberIds[(offset + k * 3) % memberIds.length]
@@ -362,19 +258,19 @@ function buildFlexRegs(
   return { regs, nextIdx: idx };
 }
 
-// ── Build all registrations ───────────────────────────────────────────────────
+// ── All registrations ─────────────────────────────────────────────────────────
 
 export const SEED_REGISTRATIONS: SessionRegistration[] = (() => {
   const all: SessionRegistration[] = [];
   let idx = 0;
 
-  const d = buildFixedRegs('sg-1', DAVID_SLOTS, FIXED_MONTHS, 'd', idx);
+  const d = buildFixedRegs(DAVID_GROUPS,  FIXED_MONTHS, 'd', idx);
   all.push(...d.regs); idx = d.nextIdx;
 
-  const t = buildFixedRegs('sg-2', TORI_SLOTS, FIXED_MONTHS, 't', idx);
+  const t = buildFixedRegs(TORI_GROUPS,   FIXED_MONTHS, 't', idx);
   all.push(...t.regs); idx = t.nextIdx;
 
-  const c = buildFixedRegs('sg-3', COLIN_SLOTS, FIXED_MONTHS, 'c', idx);
+  const c = buildFixedRegs(COLIN_GROUPS,  FIXED_MONTHS, 'c', idx);
   all.push(...c.regs); idx = c.nextIdx;
 
   const k = buildFlexRegs(0, idx);

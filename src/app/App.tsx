@@ -23,14 +23,11 @@ export type Coach = {
   email: string;
 };
 
-export type FixedSlot = {
-  id: string;
-  label: string;
-  dayOfWeek: number;   // 0=Sun, 1=Mon ... 6=Sat
-  weekOfMonth: number; // 1=1st, 2=2nd, 3=3rd, 4=4th occurrence in the month
+export type GroupSchedule = {
+  weekOfMonth: number;  // 1=1st, 2=2nd, 3=3rd, 4=4th
+  dayOfWeek: number;    // 1=Mon ... 5=Fri
   hour: number;
   minute: number;
-  memberIds: string[]; // which pros belong to this cohort
 };
 
 export type MastermindGroup = {
@@ -41,7 +38,7 @@ export type MastermindGroup = {
   createdDate: Date;
   status: 'active' | 'inactive';
   type: 'flexible' | 'fixed';
-  fixedSlots?: FixedSlot[];
+  schedule?: GroupSchedule;
 };
 
 export type MastermindSession = {
@@ -160,10 +157,6 @@ export default function App() {
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
   };
 
-  const handleUpdateFixedSlots = (groupId: string, slots: FixedSlot[]) => {
-    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, fixedSlots: slots } : g));
-  };
-
   // Simulate Zoom attendance sync — marks all registrants for a session as attended
   const handleSyncAttendance = (sessionId: string) => {
     setRegistrations(prev =>
@@ -205,100 +198,44 @@ export default function App() {
     return new Date(year, month - 1, 14);
   }
 
-  /** Returns the last occurrence of dayOfWeek in the given month */
-  function getLastWeekday(year: number, month: number, dayOfWeek: number): Date {
-    const d = new Date(year, month, 0); // last day of month
-    while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() - 1);
-    return new Date(d);
-  }
-
-  /**
-   * Generates this month's sessions for a fixed group:
-   * 3 fixed_slot sessions (one per cohort) + 1 makeup session.
-   * Also auto-creates SessionRegistrations for every cohort member in their slot.
-   */
   const handleGenerateFixedSessions = (groupId: string, month: string) => {
     const group = groups.find(g => g.id === groupId);
-    if (!group || !group.fixedSlots || group.fixedSlots.length === 0) return;
+    if (!group || !group.schedule) return;
 
+    const { weekOfMonth, dayOfWeek, hour, minute } = group.schedule;
     const [yearStr, moStr] = month.split('-');
     const year = parseInt(yearStr);
     const mo   = parseInt(moStr);
 
-    const newSessions: MastermindSession[] = [];
-    const newRegistrations: SessionRegistration[] = [];
+    const sessionDate = getNthWeekday(year, mo, dayOfWeek, weekOfMonth);
+    sessionDate.setHours(hour, minute, 0, 0);
 
-    // Create one session per fixed slot (2nd occurrence of that weekday)
-    group.fixedSlots.forEach((slot, i) => {
-      const sessionDate = getNthWeekday(year, mo, slot.dayOfWeek, slot.weekOfMonth ?? 2);
-      sessionDate.setHours(slot.hour, slot.minute, 0, 0);
+    const sessionId = `fs-gen-${groupId}-${month}`;
 
-      const sessionId = `fs-gen-${groupId}-${month}-${slot.id}`;
-      newSessions.push({
-        id: sessionId,
-        groupId,
-        month,
-        sessionNumber: i + 1,
-        date: sessionDate,
-        status: 'scheduled',
-        zoomLink: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`,
-        sessionType: 'fixed_slot',
-        slotId: slot.id,
-      });
+    // Check if already generated
+    if (sessions.some(s => s.id === sessionId)) return;
 
-      // Auto-register every cohort member
-      slot.memberIds.forEach(proId => {
-        newRegistrations.push({
-          id: `r-gen-${Date.now()}-${proId}-${slot.id}`,
-          sessionId,
-          groupId,
-          proId,
-          registeredDate: new Date(),
-          attended: null,
-        });
-      });
-    });
-
-    // Create makeup session (last occurrence of the first slot's day of week, at noon)
-    const makeupDate = getLastWeekday(year, mo, group.fixedSlots[0].dayOfWeek);
-    makeupDate.setHours(12, 0, 0, 0);
-    const makeupId = `fs-makeup-${groupId}-${month}`;
-    newSessions.push({
-      id: makeupId,
+    const newSession: MastermindSession = {
+      id: sessionId,
       groupId,
       month,
-      sessionNumber: 4,
-      date: makeupDate,
+      sessionNumber: 1,
+      date: sessionDate,
       status: 'scheduled',
       zoomLink: `https://zoom.us/j/${Math.floor(100000000 + Math.random() * 900000000)}`,
-      sessionType: 'makeup',
-    });
+      sessionType: 'fixed_slot',
+    };
 
-    setSessions(prev => [...prev, ...newSessions]);
-    setRegistrations(prev => [...prev, ...newRegistrations]);
-  };
+    const newRegistrations: SessionRegistration[] = group.memberIds.map(proId => ({
+      id: `r-gen-${Date.now()}-${proId}`,
+      sessionId,
+      groupId,
+      proId,
+      registeredDate: new Date(),
+      attended: null,
+    }));
 
-  /**
-   * Invites specific pros to the makeup session for the given month.
-   * Creates SessionRegistration records for each selected pro.
-   */
-  const handleInviteToMakeup = (groupId: string, month: string, proIds: string[]) => {
-    const makeupSession = sessions.find(
-      s => s.groupId === groupId && s.month === month && s.sessionType === 'makeup'
-    );
-    if (!makeupSession) return;
-
-    const newRegistrations: SessionRegistration[] = proIds
-      .filter(proId => !registrations.some(r => r.sessionId === makeupSession.id && r.proId === proId))
-      .map(proId => ({
-        id: `r-makeup-${Date.now()}-${proId}`,
-        sessionId: makeupSession.id,
-        groupId,
-        proId,
-        registeredDate: new Date(),
-        attended: null,
-      }));
-
+    setSessions(prev => [...prev, newSession]);
     setRegistrations(prev => [...prev, ...newRegistrations]);
   };
 
@@ -416,10 +353,8 @@ export default function App() {
             onStartSession={() => {}}
             onCompleteSession={handleCompleteSession}
             onUpdateGroup={handleUpdateGroup}
-            onUpdateFixedSlots={handleUpdateFixedSlots}
             onSyncAttendance={handleSyncAttendance}
             onGenerateFixedSessions={(month) => handleGenerateFixedSessions(activeGroup.id, month)}
-            onInviteToMakeup={(month, proIds) => handleInviteToMakeup(activeGroup.id, month, proIds)}
           />
         ) : null}
       </main>

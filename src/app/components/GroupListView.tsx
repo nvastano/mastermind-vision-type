@@ -14,13 +14,14 @@ type GroupListViewProps = {
 export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: GroupListViewProps) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'fixed' | 'flexible'>('all');
+  const [coachFilter, setCoachFilter] = useState<string>('all');
 
   const filtered = groups.filter(g => {
-    const matchesSearch =
-      g.name.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = g.name.toLowerCase().includes(search.toLowerCase()) ||
       coaches.find(c => c.id === g.coachId)?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter === 'all' || g.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesType  = typeFilter === 'all' || g.type === typeFilter;
+    const matchesCoach = coachFilter === 'all' || g.coachId === coachFilter;
+    return matchesSearch && matchesType && matchesCoach;
   });
 
   return (
@@ -59,6 +60,18 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
               </button>
             ))}
           </div>
+
+          {/* Coach filter */}
+          <select
+            value={coachFilter}
+            onChange={e => setCoachFilter(e.target.value)}
+            className="px-2 py-1 border border-[#DDDBDA] rounded text-[12px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
+          >
+            <option value="all">All Coaches</option>
+            {coaches.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
 
           <div className="flex-1 max-w-xs relative">
             <Search className="w-3.5 h-3.5 text-[#706E6B] absolute left-2.5 top-1/2 -translate-y-1/2" />
