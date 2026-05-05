@@ -97,18 +97,21 @@ export default function App() {
   // Each coach's book of business — maps coachId to a list of pro IDs.
   // For flexible groups, these pros are auto-added as members on creation.
   const COACH_BOOKS: Record<string, string[]> = {
-    c1:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 1).padStart(4, '0')}`),
-    c2:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 61).padStart(4, '0')}`),
-    c3:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 121).padStart(4, '0')}`),
-    c4:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 181).padStart(4, '0')}`),
-    c5:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 241).padStart(4, '0')}`),
-    c6:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 301).padStart(4, '0')}`),
-    c7:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 1).padStart(4, '0')}`),
-    c8:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 41).padStart(4, '0')}`),
-    c9:  Array.from({ length: 40  }, (_, i) => `pro-${String(i + 81).padStart(4, '0')}`),
-    c10: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 121).padStart(4, '0')}`),
-    c11: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 161).padStart(4, '0')}`),
-    c12: Array.from({ length: 40  }, (_, i) => `pro-${String(i + 201).padStart(4, '0')}`),
+    // Fixed coaches — 300 pros each
+    c1:  Array.from({ length: 300 }, (_, i) => `pro-${String(i +   1).padStart(4, '0')}`),
+    c2:  Array.from({ length: 300 }, (_, i) => `pro-${String(i + 301).padStart(4, '0')}`),
+    c3:  Array.from({ length: 300 }, (_, i) => `pro-${String(i + 601).padStart(4, '0')}`),
+    // Flexible coaches — 60 pros each
+    c4:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 901).padStart(4, '0')}`),
+    c5:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 961).padStart(4, '0')}`),
+    c6:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 1021).padStart(4, '0')}`),
+    // Other coaches — 60 pros each (shared pool for demo purposes)
+    c7:  Array.from({ length: 60  }, (_, i) => `pro-${String(i +   1).padStart(4, '0')}`),
+    c8:  Array.from({ length: 60  }, (_, i) => `pro-${String(i +  61).padStart(4, '0')}`),
+    c9:  Array.from({ length: 60  }, (_, i) => `pro-${String(i + 121).padStart(4, '0')}`),
+    c10: Array.from({ length: 60  }, (_, i) => `pro-${String(i + 181).padStart(4, '0')}`),
+    c11: Array.from({ length: 60  }, (_, i) => `pro-${String(i + 241).padStart(4, '0')}`),
+    c12: Array.from({ length: 60  }, (_, i) => `pro-${String(i + 301).padStart(4, '0')}`),
   };
 
   // App data — seeded on first load, persisted across refreshes
@@ -227,7 +230,7 @@ export default function App() {
 
     // Create one session per fixed slot (2nd occurrence of that weekday)
     group.fixedSlots.forEach((slot, i) => {
-      const sessionDate = getNthWeekday(year, mo, slot.dayOfWeek, 2);
+      const sessionDate = getNthWeekday(year, mo, slot.dayOfWeek, slot.weekOfMonth ?? 2);
       sessionDate.setHours(slot.hour, slot.minute, 0, 0);
 
       const sessionId = `fs-gen-${groupId}-${month}-${slot.id}`;
