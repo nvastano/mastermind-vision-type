@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, UserPlus, Plus, Mail, Users, Calendar,
-  Check, X, Pencil, Wifi, ChevronDown, Save
+  Check, X, Pencil, Wifi, ChevronDown, Save, Search, ArrowUpDown
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration, FixedSlot } from '../App';
@@ -38,6 +38,15 @@ function formatTime(hour: number, minute: number): string {
 
 // ── Fixed Groups panel ────────────────────────────────────────────────────────
 
+const DAY_FILTERS = [
+  { label: 'All', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+];
+
 function FixedGroupsPanel({
   group,
   members,
@@ -48,9 +57,13 @@ function FixedGroupsPanel({
   onUpdateSlots: (slots: FixedSlot[]) => void;
 }) {
   const slots = group.fixedSlots ?? [];
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [editingIdx, setEditingIdx]   = useState<number | null>(null);
-  const [draft, setDraft]             = useState<{ dayOfWeek: number; hour: number; minute: number } | null>(null);
+  const [expandedIds, setExpandedIds]   = useState<Set<string>>(new Set());
+  const [editingIdx, setEditingIdx]     = useState<number | null>(null);
+  const [draft, setDraft]               = useState<{ dayOfWeek: number; hour: number; minute: number } | null>(null);
+  const [search, setSearch]             = useState('');
+  const [dayFilter, setDayFilter]       = useState(0);
+  const [sortAsc, setSortAsc]           = useState(true);
+  const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
 
   const toggleExpand = (id: string) =>
     setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -73,7 +86,6 @@ function FixedGroupsPanel({
     setDraft({ dayOfWeek: 1, hour: 9, minute: 0 });
   };
 
-  // Move a pro from one slot to another (or unassign)
   const movePro = (proId: string, fromSlotId: string, toSlotId: string) => {
     onUpdateSlots(slots.map(s => {
       if (s.id === fromSlotId) return { ...s, memberIds: s.memberIds.filter(id => id !== proId) };
@@ -82,12 +94,10 @@ function FixedGroupsPanel({
     }));
   };
 
-  // Assign an unassigned pro to a slot
   const assignPro = (proId: string, toSlotId: string) => {
     onUpdateSlots(slots.map(s => s.id === toSlotId ? { ...s, memberIds: [...s.memberIds, proId] } : s));
   };
 
-  // Unassign a pro (remove from their current slot)
   const unassignPro = (proId: string, fromSlotId: string) => {
     onUpdateSlots(slots.map(s => s.id === fromSlotId ? { ...s, memberIds: s.memberIds.filter(id => id !== proId) } : s));
   };
@@ -95,21 +105,43 @@ function FixedGroupsPanel({
   const assignedIds = new Set(slots.flatMap(s => s.memberIds));
   const unassigned  = members.filter(m => !assignedIds.has(m.id));
 
+  const visibleSlots = slots
+    .filter(s => {
+      const matchDay  = dayFilter === 0 || s.dayOfWeek === dayFilter;
+      const matchText = search === '' ||
+        s.label.toLowerCase().includes(search.toLowerCase()) ||
+        DAYS[s.dayOfWeek].toLowerCase().includes(search.toLowerCase()) ||
+        formatTime(s.hour, s.minute).toLowerCase().includes(search.toLowerCase());
+      return matchDay && matchText;
+    })
+    .slice()
+    .sort((a, b) => {
+      const diff = (a.dayOfWeek * 1440 + a.hour * 60 + a.minute) -
+                   (b.dayOfWeek * 1440 + b.hour * 60 + b.minute);
+      return sortAsc ? diff : -diff;
+    });
+
   return (
     <div className="bg-white rounded border border-[#DDDBDA] shadow-sm">
+
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#DDDBDA] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[#DDDBDA] flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-[#0176D3]" />
           <h2 className="text-[13px] font-bold text-[#080707]">Fixed Groups</h2>
-          <span className="text-[11px] text-[#706E6B]">{slots.length} group{slots.length !== 1 ? 's' : ''}</span>
+          <span className="text-[11px] text-[#706E6B]">
+            {visibleSlots.length === slots.length
+              ? `${slots.length} group${slots.length !== 1 ? 's' : ''}`
+              : `${visibleSlots.length} of ${slots.length}`}
+          </span>
           {unassigned.length > 0 && (
             <span className="text-[11px] bg-[#FEF3E2] text-[#7A4F00] px-2 py-0.5 rounded-full">
               {unassigned.length} unassigned
             </span>
           )}
         </div>
-        <button onClick={addSlot} className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5">
+        <button onClick={addSlot}
+          className="px-3 py-1.5 bg-white text-[#0176D3] text-[12px] rounded border border-[#DDDBDA] hover:bg-[#EEF4FF] transition-colors flex items-center gap-1.5 flex-shrink-0">
           <Plus className="w-3.5 h-3.5" /> Add Group
         </button>
       </div>
@@ -118,124 +150,182 @@ function FixedGroupsPanel({
         <div className="py-10 text-center">
           <Users className="w-8 h-8 text-[#C9C7C5] mx-auto mb-2" />
           <p className="text-[#706E6B] text-[13px] mb-3">No groups defined yet.</p>
-          <button onClick={addSlot} className="px-4 py-2 bg-[#0176D3] text-white text-[13px] rounded hover:bg-[#014486] transition-colors inline-flex items-center gap-2">
+          <button onClick={addSlot}
+            className="px-4 py-2 bg-[#0176D3] text-white text-[13px] rounded hover:bg-[#014486] transition-colors inline-flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add First Group
           </button>
         </div>
       ) : (
-        <div className="divide-y divide-[#DDDBDA]">
-          {slots.map((slot, i) => {
-            const isEditing  = editingIdx === i;
-            const isExpanded = expandedIds.has(slot.id);
-            const slotMembers = slot.memberIds.map(id => members.find(m => m.id === id)).filter(Boolean) as Pro[];
-            const otherSlots  = slots.filter(s => s.id !== slot.id);
+        <>
+          {/* Filter bar */}
+          <div className="px-4 py-2 border-b border-[#DDDBDA] flex items-center gap-2 flex-wrap bg-[#FAFAF9]">
+            <div className="relative flex-1 min-w-[160px] max-w-xs">
+              <Search className="w-3 h-3 text-[#706E6B] absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search groups…"
+                className="w-full pl-6 pr-2 py-1 border border-[#DDDBDA] rounded text-[11px] text-[#080707] bg-white focus:outline-none focus:border-[#0176D3]"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#706E6B] hover:text-[#080707]">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center rounded border border-[#DDDBDA] overflow-hidden">
+              {DAY_FILTERS.map(f => (
+                <button key={f.value} onClick={() => setDayFilter(f.value)}
+                  className={`px-2.5 py-1 text-[11px] transition-colors ${
+                    dayFilter === f.value ? 'bg-[#032D60] text-white' : 'bg-white text-[#706E6B] hover:bg-[#F3F2F2]'
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setSortAsc(v => !v)}
+              className="flex items-center gap-1 px-2.5 py-1 border border-[#DDDBDA] rounded bg-white text-[11px] text-[#706E6B] hover:bg-[#F3F2F2] transition-colors">
+              <ArrowUpDown className="w-3 h-3" />
+              {sortAsc ? 'Day ↑' : 'Day ↓'}
+            </button>
+          </div>
 
-            return (
-              <div key={slot.id}>
-                {/* Slot header row */}
-                <div className="px-4 py-3">
-                  {isEditing && draft ? (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
-                      <select value={draft.dayOfWeek} onChange={e => setDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
-                        className="flex-1 min-w-[120px] px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
-                        {[1,2,3,4,5].map(d => <option key={d} value={d}>{DAYS[d]}</option>)}
-                      </select>
-                      <input type="time"
-                        value={`${String(draft.hour).padStart(2,'0')}:${String(draft.minute).padStart(2,'0')}`}
-                        onChange={e => { const [h,m] = e.target.value.split(':').map(Number); setDraft(d => d ? { ...d, hour: h, minute: m } : d); }}
-                        className="w-28 px-2 py-1.5 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]"
-                      />
-                      <button onClick={() => saveSlot(i)} className="px-2.5 py-1.5 bg-[#0176D3] text-white text-[11px] rounded hover:bg-[#014486] transition-colors flex items-center gap-1">
-                        <Save className="w-3 h-3" /> Save
-                      </button>
-                      <button onClick={() => { setEditingIdx(null); setDraft(null); }} className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2]">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      {/* Expand toggle */}
-                      <button onClick={() => toggleExpand(slot.id)} className="p-0.5 rounded hover:bg-[#F3F2F2] text-[#706E6B] transition-colors">
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                      </button>
-                      <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
-                      <span className="text-[13px] text-[#080707] flex-1">{DAYS[slot.dayOfWeek]} · {formatTime(slot.hour, slot.minute)}</span>
-                      <span className="text-[11px] text-[#706E6B]">{slotMembers.length} member{slotMembers.length !== 1 ? 's' : ''}</span>
-                      <button onClick={() => { setEditingIdx(i); setDraft({ dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
-                        className="p-1.5 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors" title="Edit schedule">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => removeSlot(i)} disabled={slots.length <= 1}
-                        className="p-1.5 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors" title="Remove group">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+          {visibleSlots.length === 0 ? (
+            <div className="py-8 text-center text-[#706E6B] text-[13px]">No groups match your filter.</div>
+          ) : (
+            <div className="divide-y divide-[#DDDBDA]">
+              {visibleSlots.map(slot => {
+                const origIdx     = slots.indexOf(slot);
+                const isEditing   = editingIdx === origIdx;
+                const isExpanded  = expandedIds.has(slot.id);
+                const slotMembers = slot.memberIds.map(id => members.find(m => m.id === id)).filter(Boolean) as Pro[];
+                const otherSlots  = slots.filter(s => s.id !== slot.id);
+                const mSearch     = memberSearch[slot.id] ?? '';
+                const filteredMembers = mSearch
+                  ? slotMembers.filter(p =>
+                      p.name.toLowerCase().includes(mSearch.toLowerCase()) ||
+                      p.email.toLowerCase().includes(mSearch.toLowerCase()))
+                  : slotMembers;
 
-                {/* Expanded member list */}
-                {isExpanded && !isEditing && (
-                  <div className="border-t border-[#DDDBDA] bg-[#FAFAF9] px-4 py-2">
-                    {slotMembers.length === 0 ? (
-                      <p className="text-[11px] text-[#706E6B] italic py-2">No members assigned to this group.</p>
-                    ) : (
-                      <div className="divide-y divide-[#F3F2F2]">
-                        {slotMembers.map(pro => (
-                          <div key={pro.id} className="flex items-center gap-3 py-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[12px] text-[#080707] truncate">{pro.name}</p>
-                              <p className="text-[11px] text-[#706E6B] truncate">{pro.email}</p>
+                return (
+                  <div key={slot.id}>
+                    <div className={`px-4 py-2.5 ${isExpanded ? 'bg-[#EEF4FF]' : 'hover:bg-[#FAFAF9]'} transition-colors`}>
+                      {isEditing && draft ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[12px] font-bold text-[#706E6B] w-14 shrink-0">{slot.label}</span>
+                          <select value={draft.dayOfWeek}
+                            onChange={e => setDraft(d => d ? { ...d, dayOfWeek: Number(e.target.value) } : d)}
+                            className="flex-1 min-w-[110px] px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]">
+                            {[1,2,3,4,5].map(d => <option key={d} value={d}>{DAYS[d]}</option>)}
+                          </select>
+                          <input type="time"
+                            value={`${String(draft.hour).padStart(2,'0')}:${String(draft.minute).padStart(2,'0')}`}
+                            onChange={e => { const [h,m] = e.target.value.split(':').map(Number); setDraft(d => d ? { ...d, hour: h, minute: m } : d); }}
+                            className="w-28 px-2 py-1 border border-[#DDDBDA] rounded text-[12px] bg-white focus:outline-none focus:border-[#0176D3]"
+                          />
+                          <button onClick={() => saveSlot(origIdx)}
+                            className="px-2.5 py-1 bg-[#0176D3] text-white text-[11px] rounded hover:bg-[#014486] transition-colors flex items-center gap-1">
+                            <Save className="w-3 h-3" /> Save
+                          </button>
+                          <button onClick={() => { setEditingIdx(null); setDraft(null); }}
+                            className="p-1 rounded text-[#706E6B] hover:bg-[#F3F2F2]">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleExpand(slot.id)}
+                            className="p-0.5 rounded hover:bg-[#DDDBDA] text-[#706E6B] transition-colors flex-shrink-0">
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                          <span className="w-8 text-[10px] font-bold text-[#0176D3] text-center flex-shrink-0">
+                            {DAYS[slot.dayOfWeek].slice(0,3).toUpperCase()}
+                          </span>
+                          <span className="text-[12px] text-[#080707] w-20 flex-shrink-0">{formatTime(slot.hour, slot.minute)}</span>
+                          <span className="text-[12px] font-bold text-[#706E6B] flex-1 truncate">{slot.label}</span>
+                          <span className="text-[11px] text-[#706E6B] flex-shrink-0 w-20 text-right">
+                            {slotMembers.length} member{slotMembers.length !== 1 ? 's' : ''}
+                          </span>
+                          <button onClick={() => { setEditingIdx(origIdx); setDraft({ dayOfWeek: slot.dayOfWeek, hour: slot.hour, minute: slot.minute }); }}
+                            className="p-1 rounded text-[#706E6B] hover:bg-[#F3F2F2] transition-colors flex-shrink-0" title="Edit">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => removeSlot(origIdx)} disabled={slots.length <= 1}
+                            className="p-1 rounded text-[#706E6B] hover:bg-[#FCE3E3] hover:text-[#C23934] disabled:opacity-20 disabled:cursor-not-allowed transition-colors flex-shrink-0" title="Remove">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {isExpanded && !isEditing && (
+                      <div className="border-t border-[#DDDBDA] bg-[#FAFAF9]">
+                        {slotMembers.length > 5 && (
+                          <div className="px-4 pt-2 pb-1">
+                            <div className="relative max-w-xs">
+                              <Search className="w-3 h-3 text-[#706E6B] absolute left-2 top-1/2 -translate-y-1/2" />
+                              <input
+                                value={mSearch}
+                                onChange={e => setMemberSearch(prev => ({ ...prev, [slot.id]: e.target.value }))}
+                                placeholder={`Search ${slotMembers.length} members…`}
+                                className="w-full pl-6 pr-2 py-1 border border-[#DDDBDA] rounded text-[11px] bg-white focus:outline-none focus:border-[#0176D3]"
+                              />
                             </div>
-                            {/* Move to another group */}
-                            <select
-                              value=""
-                              onChange={e => {
+                          </div>
+                        )}
+                        <div className="px-4 py-1 divide-y divide-[#F3F2F2] max-h-64 overflow-y-auto">
+                          {filteredMembers.length === 0 ? (
+                            <p className="text-[11px] text-[#706E6B] italic py-2">
+                              {slotMembers.length === 0 ? 'No members assigned.' : 'No members match search.'}
+                            </p>
+                          ) : filteredMembers.map(pro => (
+                            <div key={pro.id} className="flex items-center gap-3 py-1.5">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[12px] text-[#080707]">{pro.name}</span>
+                                <span className="text-[11px] text-[#706E6B] ml-2">{pro.email}</span>
+                              </div>
+                              <select value="" onChange={e => {
                                 const val = e.target.value;
                                 if (val === '__unassign__') unassignPro(pro.id, slot.id);
                                 else movePro(pro.id, slot.id, val);
                               }}
-                              className="text-[11px] border border-[#DDDBDA] rounded px-2 py-1 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer"
-                            >
-                              <option value="" disabled>Move to…</option>
-                              {otherSlots.map(s => (
-                                <option key={s.id} value={s.id}>{s.label}</option>
-                              ))}
-                              <option value="__unassign__">Unassign</option>
-                            </select>
-                          </div>
-                        ))}
+                                className="text-[11px] border border-[#DDDBDA] rounded px-2 py-0.5 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer flex-shrink-0">
+                                <option value="" disabled>Move to…</option>
+                                {otherSlots.map(s => (
+                                  <option key={s.id} value={s.id}>{DAYS[s.dayOfWeek].slice(0,3)} {formatTime(s.hour, s.minute)} · {s.label}</option>
+                                ))}
+                                <option value="__unassign__">— Unassign</option>
+                              </select>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
 
-          {/* Unassigned members */}
+          {/* Unassigned section */}
           {unassigned.length > 0 && (
-            <div>
-              <div className="px-4 py-2.5 bg-[#FEF3E2] flex items-center gap-2">
-                <span className="text-[12px] font-bold text-[#7A4F00]">Unassigned</span>
-                <span className="text-[11px] text-[#7A4F00]">({unassigned.length})</span>
-                <span className="text-[11px] text-[#7A4F00]">— assign each pro to a group below</span>
+            <div className="border-t-2 border-[#FE9339]">
+              <div className="px-4 py-2 bg-[#FEF3E2] flex items-center gap-2">
+                <span className="text-[12px] font-bold text-[#7A4F00]">Unassigned ({unassigned.length})</span>
+                <span className="text-[11px] text-[#7A4F00]">— use the dropdown to assign each pro to a group</span>
               </div>
-              <div className="bg-[#FAFAF9] px-4 divide-y divide-[#F3F2F2]">
+              <div className="bg-[#FAFAF9] px-4 divide-y divide-[#F3F2F2] max-h-64 overflow-y-auto">
                 {unassigned.map(pro => (
-                  <div key={pro.id} className="flex items-center gap-3 py-2">
+                  <div key={pro.id} className="flex items-center gap-3 py-1.5">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-[#080707] truncate">{pro.name}</p>
-                      <p className="text-[11px] text-[#706E6B] truncate">{pro.email}</p>
+                      <span className="text-[12px] text-[#080707]">{pro.name}</span>
+                      <span className="text-[11px] text-[#706E6B] ml-2">{pro.email}</span>
                     </div>
-                    <select
-                      value=""
-                      onChange={e => assignPro(pro.id, e.target.value)}
-                      className="text-[11px] border border-[#DDDBDA] rounded px-2 py-1 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer"
-                    >
+                    <select value="" onChange={e => assignPro(pro.id, e.target.value)}
+                      className="text-[11px] border border-[#DDDBDA] rounded px-2 py-0.5 bg-white text-[#706E6B] focus:outline-none focus:border-[#0176D3] cursor-pointer flex-shrink-0">
                       <option value="" disabled>Assign to…</option>
                       {slots.map(s => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
+                        <option key={s.id} value={s.id}>{DAYS[s.dayOfWeek].slice(0,3)} {formatTime(s.hour, s.minute)} · {s.label}</option>
                       ))}
                     </select>
                   </div>
@@ -243,7 +333,7 @@ function FixedGroupsPanel({
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
