@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ChevronDown, X, List } from 'lucide-react';
+import { Plus, X, List } from 'lucide-react';
 import { GroupListView } from './components/GroupListView';
 import { GroupRecordPage } from './components/GroupRecordPage';
 import { CreateGroupModal } from './components/CreateGroupModal';
@@ -330,19 +330,18 @@ export default function App() {
         </div>
 
         {/* ── Record Tab Strip ───────────────────────────────────────────── */}
-        <div className="flex items-end bg-[#01284F] overflow-x-auto" style={{ minHeight: 32 }}>
+        <div className="flex items-end bg-[#01284F] overflow-x-auto" style={{ minHeight: 34 }}>
           {/* List view tab */}
           <button
             onClick={() => setActiveTabId('list')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 text-[12px] whitespace-nowrap border-r border-white/10 transition-colors flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-4 text-[12px] whitespace-nowrap transition-colors flex-shrink-0 relative ${
               activeTabId === 'list'
-                ? 'bg-[#F3F2F2] text-[#032D60] font-normal'
-                : 'text-[#A8C8F8] hover:bg-white/10'
+                ? 'bg-[#F3F2F2] text-[#032D60] font-semibold pt-[3px] pb-[7px] border-t-2 border-t-[#0176D3]'
+                : 'text-[#A8C8F8] hover:bg-white/10 py-[6px]'
             }`}
           >
             <List className="w-3 h-3" />
             Mastermind Groups
-            <ChevronDown className="w-3 h-3 opacity-60" />
           </button>
 
           {/* Open group record tabs */}
@@ -354,15 +353,13 @@ export default function App() {
               <button
                 key={gid}
                 onClick={() => setActiveTabId(gid)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] whitespace-nowrap border-r border-white/10 transition-colors flex-shrink-0 group ${
+                className={`flex items-center gap-1.5 px-3 text-[12px] whitespace-nowrap transition-colors flex-shrink-0 group relative ${
                   isActive
-                    ? 'bg-[#F3F2F2] text-[#032D60] font-normal'
-                    : 'text-[#A8C8F8] hover:bg-white/10'
+                    ? 'bg-[#F3F2F2] text-[#032D60] font-semibold pt-[3px] pb-[7px] border-t-2 border-t-[#0176D3]'
+                    : 'text-[#A8C8F8] hover:bg-white/10 py-[6px]'
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-[#0176D3]' : 'bg-[#A8C8F8]'}`} />
                 <span className="max-w-[140px] truncate">{g.name}</span>
-                <ChevronDown className="w-3 h-3 opacity-60" />
                 <span
                   onClick={e => closeTab(gid, e)}
                   className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-black/20 rounded p-0.5 transition-all"
@@ -376,7 +373,7 @@ export default function App() {
           {/* New button */}
           <button
             onClick={() => setShowCreateGroup(true)}
-            className="flex items-center gap-1 px-3 py-1.5 text-[#A8C8F8] text-[12px] hover:bg-white/10 transition-colors flex-shrink-0"
+            className="flex items-center gap-1 px-3 py-[6px] text-[#A8C8F8] text-[12px] hover:bg-white/10 transition-colors flex-shrink-0"
           >
             <Plus className="w-3 h-3" />
           </button>

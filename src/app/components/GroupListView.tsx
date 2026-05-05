@@ -77,18 +77,18 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
         <table className="w-full">
           <thead>
             <tr className="bg-[#FAFAF9] border-b border-[#DDDBDA]">
-              <th className="w-10 px-3 py-2.5">
+              <th className="w-10 px-3 py-2">
                 <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#DDDBDA]" />
               </th>
               {['Group Name', 'Coach', 'Type', 'Status', 'Members'].map(h => (
                 <th
                   key={h}
-                  className="text-left px-3 py-2.5 text-[12px] font-bold text-[#080707] uppercase tracking-wide whitespace-nowrap"
+                  className="text-left px-3 py-2 text-[12px] font-bold text-[#080707] uppercase tracking-wide whitespace-nowrap"
                 >
                   {h}
                 </th>
               ))}
-              <th className="w-10 px-3 py-2.5" />
+              <th className="w-10 px-3 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#DDDBDA]">
@@ -100,12 +100,12 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
                   className="bg-white hover:bg-[#F3F2F2] transition-colors cursor-pointer group"
                   onClick={() => onOpenGroup(group.id)}
                 >
-                  <td className="px-3 py-3.5" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                     <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#DDDBDA]" />
                   </td>
 
                   {/* Name */}
-                  <td className="px-3 py-3.5">
+                  <td className="px-3 py-2">
                     <button
                       className="text-[#0176D3] text-[13px] hover:underline text-left font-normal"
                       onClick={e => { e.stopPropagation(); onOpenGroup(group.id); }}
@@ -115,13 +115,13 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
                   </td>
 
                   {/* Coach */}
-                  <td className="px-3 py-3.5">
+                  <td className="px-3 py-2">
                     <p className="text-[13px] text-[#080707]">{coach?.name}</p>
                     <p className="text-[11px] text-[#706E6B]">{coach?.email}</p>
                   </td>
 
                   {/* Type */}
-                  <td className="px-3 py-3.5">
+                  <td className="px-3 py-2">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${
                       group.type === 'fixed'
                         ? 'bg-[#F3F2F2] text-[#706E6B]'
@@ -132,7 +132,7 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
                   </td>
 
                   {/* Status */}
-                  <td className="px-3 py-3.5">
+                  <td className="px-3 py-2">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${
                       group.status === 'active'
                         ? 'bg-[#E7F6EC] text-[#1C6E42]'
@@ -146,12 +146,12 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
                   </td>
 
                   {/* Members */}
-                  <td className="px-3 py-3.5 text-[13px] text-[#080707]">
+                  <td className="px-3 py-2 text-[13px] text-[#080707]">
                     {group.memberIds.length}
                   </td>
 
                   {/* Row actions */}
-                  <td className="px-3 py-3.5" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                     <button className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[#DDDBDA] transition-all text-[#706E6B]">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
