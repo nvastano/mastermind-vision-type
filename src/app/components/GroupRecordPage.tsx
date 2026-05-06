@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   ChevronRight, ChevronLeft, UserPlus, Plus, Mail, Users, Calendar,
-  Check, X, Pencil, ChevronDown, Minus, Video
+  Check, X, Pencil, ChevronDown, Minus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { MastermindGroup, Coach, Pro, MastermindSession, SessionRegistration } from '../App';
@@ -106,14 +106,20 @@ function SessionCard({
       </div>
 
       {/* Date / time / zoom */}
-      <div className="px-3 py-3 flex-1">
-        <p className="text-[14px] text-[#080707]">{format(session.date, 'EEE, MMM d')}</p>
-        <p className="text-[12px] text-[#706E6B]">{format(session.date, 'h:mm a')}</p>
+      <div className="px-3 py-3 flex-1 flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[14px] text-[#080707]">{format(session.date, 'EEE, MMM d')}</p>
+          <p className="text-[12px] text-[#706E6B]">{format(session.date, 'h:mm a')}</p>
+        </div>
         {session.zoomLink && (
-          <div className="mt-1.5 flex items-center gap-1">
-            <Video className="w-3 h-3 flex-shrink-0 text-[#706E6B]" />
-            <span className="text-[11px] text-[#706E6B] break-all select-all">{session.zoomLink}</span>
-          </div>
+          <a
+            href={session.zoomLink}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] text-[#0176D3] hover:underline flex-shrink-0 mt-0.5"
+          >
+            {session.zoomLink}
+          </a>
         )}
       </div>
 
