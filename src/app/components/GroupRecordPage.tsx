@@ -110,15 +110,10 @@ function SessionCard({
         <p className="text-[14px] text-[#080707]">{format(session.date, 'EEE, MMM d')}</p>
         <p className="text-[12px] text-[#706E6B]">{format(session.date, 'h:mm a')}</p>
         {session.zoomLink && (
-          <a
-            href={session.zoomLink}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-[#0176D3] hover:underline"
-          >
-            <Video className="w-3 h-3 flex-shrink-0" />
-            Join Zoom
-          </a>
+          <div className="mt-1.5 flex items-center gap-1">
+            <Video className="w-3 h-3 flex-shrink-0 text-[#706E6B]" />
+            <span className="text-[11px] text-[#706E6B] break-all select-all">{session.zoomLink}</span>
+          </div>
         )}
       </div>
 
