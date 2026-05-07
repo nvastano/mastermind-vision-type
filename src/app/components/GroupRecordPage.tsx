@@ -274,6 +274,14 @@ export function GroupRecordPage({
   const [selectedMonth, setSelectedMonth] = useState(allMonths[0] ?? '');
   const monthIdx = allMonths.indexOf(selectedMonth);
 
+  // When sessions are added (e.g. after creating a new month), auto-select
+  // the most recent month if the current selection is no longer valid
+  useEffect(() => {
+    if (allMonths.length > 0 && !allMonths.includes(selectedMonth)) {
+      setSelectedMonth(allMonths[0]);
+    }
+  }, [allMonths.join(',')]);
+
   const monthLabel = selectedMonth
     ? format(parseISO(selectedMonth + '-02'), 'MMMM yyyy')
     : '—';
