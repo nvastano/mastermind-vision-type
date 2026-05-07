@@ -143,10 +143,20 @@ export default function App() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleCreateGroup = (group: Omit<MastermindGroup, 'id' | 'createdDate'>) => {
-    // For flexible groups, auto-populate the book of business as members
-    const memberIds = group.type === 'flexible'
-      ? (COACH_BOOKS[group.coachId] ?? [])
-      : group.memberIds;
+    let memberIds = group.memberIds;
+
+    if (group.type === 'flexible') {
+      // Pick 300 random pros not currently in any group
+      const assignedIds = new Set(groups.flatMap(g => g.memberIds));
+      const available   = pros.filter(p => !assignedIds.has(p.id)).map(p => p.id);
+      // Fisher-Yates shuffle then take 300
+      for (let i = available.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [available[i], available[j]] = [available[j], available[i]];
+      }
+      memberIds = available.slice(0, 300);
+    }
+
     const newGroup: MastermindGroup = { ...group, memberIds, id: `g${Date.now()}`, createdDate: new Date() };
     setGroups(prev => [...prev, newGroup]);
     setShowCreateGroup(false);

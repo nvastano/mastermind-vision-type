@@ -80,10 +80,10 @@ function generateEmail(first: string, last: string, seed: number): string {
   return `${formats[seed % formats.length]}@${domain}`;
 }
 
-// Generate 180 unique pros (60 per flexible coach × 3)
+// Generate 2,000 unique pros
 const seen = new Set<string>();
 
-export const SEED_PROS: Pro[] = Array.from({ length: 180 }, (_, i) => {
+export const SEED_PROS: Pro[] = Array.from({ length: 2000 }, (_, i) => {
   // Deterministic but varied — step through names with a stride to avoid repeats
   const firstIdx = (i * 7) % FIRST_NAMES.length;
   const lastIdx  = (i * 11 + 3) % LAST_NAMES.length;

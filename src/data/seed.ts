@@ -11,10 +11,11 @@ function proRange(start: number, end: number): string[] {
 // ── Flexible groups ───────────────────────────────────────────────────────────
 // 3 coaches × 60 pros each = 180 pros total (pro-0001 through pro-0180)
 
+// 3 groups × 300 pros each = 900 assigned; pros 901–2000 are in the unassigned pool
 export const SEED_GROUPS: MastermindGroup[] = [
-  { id: 'sg-4', name: 'Katrien Shaw Mastermind',    coachId: 'c4', memberIds: proRange(1,   60),  createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
-  { id: 'sg-5', name: 'Angelica Dotson Mastermind', coachId: 'c5', memberIds: proRange(61,  120), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
-  { id: 'sg-6', name: 'Lily Lee Mastermind',        coachId: 'c6', memberIds: proRange(121, 180), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
+  { id: 'sg-4', name: 'Katrien Shaw Mastermind',    coachId: 'c4', memberIds: proRange(1,   300), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
+  { id: 'sg-5', name: 'Angelica Dotson Mastermind', coachId: 'c5', memberIds: proRange(301, 600), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
+  { id: 'sg-6', name: 'Lily Lee Mastermind',        coachId: 'c6', memberIds: proRange(601, 900), createdDate: new Date('2026-01-06'), status: 'active', type: 'flexible' },
 ];
 
 // ── Flexible session builder ──────────────────────────────────────────────────
