@@ -16,13 +16,19 @@ export function GroupListView({ groups, coaches, onOpenGroup, onNewGroup }: Grou
   const [typeFilter, setTypeFilter] = useState<'all' | 'fixed' | 'flexible'>('all');
   const [coachFilter, setCoachFilter] = useState<string>('all');
 
-  const filtered = groups.filter(g => {
-    const matchesSearch = g.name.toLowerCase().includes(search.toLowerCase()) ||
-      coaches.find(c => c.id === g.coachId)?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesType  = typeFilter === 'all' || g.type === typeFilter;
-    const matchesCoach = coachFilter === 'all' || g.coachId === coachFilter;
-    return matchesSearch && matchesType && matchesCoach;
-  });
+  const filtered = groups
+    .filter(g => {
+      const matchesSearch = g.name.toLowerCase().includes(search.toLowerCase()) ||
+        coaches.find(c => c.id === g.coachId)?.name.toLowerCase().includes(search.toLowerCase());
+      const matchesType  = typeFilter === 'all' || g.type === typeFilter;
+      const matchesCoach = coachFilter === 'all' || g.coachId === coachFilter;
+      return matchesSearch && matchesType && matchesCoach;
+    })
+    .sort((a, b) => {
+      // Flexible groups first, then fixed; within each type sort by name
+      if (a.type !== b.type) return a.type === 'flexible' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <div>
